@@ -1,91 +1,94 @@
 # Acoustic UAV Detector
 
-Пасивний акустичний детектор дронів. Три цифрові MEMS-мікрофони, розставлені
-рівностороннім трикутником, слухають шум пропелерів; мікроконтролер порівнює,
-на скільки раніше звук дійшов до кожного мікрофона (TDOA, метод GCC-PHAT), і з
-цих різниць обчислює азимут — напрямок на джерело в межах повних 360°.
+A passive acoustic drone detector. Three digital MEMS microphones, placed at the
+vertices of an equilateral triangle, listen for propeller noise; the
+microcontroller measures how much earlier the sound reached each microphone
+(TDOA, via GCC-PHAT) and turns those differences into an azimuth — the bearing
+to the source over a full 360°.
 
-Пристрій нічого не випромінює: він тільки слухає. Тому працює без GNSS і без
-радіозв'язку — там, де радіочастотний спектр заглушений, — і не потребує
-дозволу на передачу.
+The device emits nothing: it only listens. That means it works without GNSS and
+without radio — including where the RF spectrum is jammed — and needs no
+transmit permit.
 
-Це навчальний прототип. Спершу бредборд і запис 3-канального звуку на microSD
-для офлайн-аналізу, далі — обчислення азимута в реальному часі, і вже потім
-герметичний корпус для роботи на вулиці від акумулятора.
+This is a learning prototype. First a breadboard build that records 3-channel
+audio to microSD for offline analysis, then real-time azimuth estimation on the
+device, and only after that a weatherized enclosure for outdoor battery
+operation.
 
-Чого пристрій не вміє: дальність скромна (сотні метрів, залежить від фонового
-шуму й типу дрона), вітер і міський шум псують точність, а плоский масив із
-трьох мікрофонів дає лише азимут — без кута підвищення.
+What it cannot do: range is modest (hundreds of meters, depending on background
+noise and drone type), wind and urban noise degrade accuracy, and a flat
+three-microphone array yields azimuth only — no elevation.
 
-Технічні деталі (розпіновка, геометрія масиву, конвеєр обробки сигналу) — у
+Technical details (pin map, array geometry, signal-processing pipeline) live in
 [CLAUDE.md](CLAUDE.md).
 
-## Компоненти
+## Components
 
-### Мікроконтролер
+### Microcontroller
 
-![Плата ESP32](imgs/controller.jpg)
+![ESP32 board](imgs/controller.jpg)
 
-Devkit-плата на модулі ESP-WROOM-32: 30 пінів, USB-C для живлення та
-прошивки. Мозок пристрою — читає мікрофони, робить кореляційні обчислення,
-пише результат на карту.
+A devkit board built around the ESP-WROOM-32 module: 30 pins, USB-C for power
+and flashing. The brain of the device — it reads the microphones, runs the
+correlation math, and writes results to the card.
 
-Критично важливо, що чип має **два** незалежні I2S-контролери. Один
-контролер обслуговує лише два мікрофони (лівий і правий канали одного
-стерео-потоку), тож третій мікрофон іде на другий контролер. Обидва мають
-працювати від синхронізованого тактування, інакше потоки «поїдуть» один
-відносно одного і вся математика напрямку стане недійсною.
+The critical property is that the chip has **two** independent I2S controllers.
+One controller serves only two microphones (the left and right channels of a
+single stereo stream), so the third microphone goes on the second controller.
+Both must run off synchronized clocking; otherwise the streams drift relative to
+one another and all of the direction math becomes invalid.
 
-Кількість: 1.
+Quantity: 1.
 
-### Мікрофони
+### Microphones
 
-![Модуль мікрофона INMP441](imgs/microphone.jpg)
+![INMP441 microphone module](imgs/microphone.jpg)
 
-INMP441 — цифровий MEMS-мікрофон з I2S-виходом, на круглій платі-брейкауті
-(гребінки в комплекті, ще не припаяні). Цифровий вихід означає, що на
-з'єднанні від мікрофона до плати немає аналогового сигналу, який можна
-зіпсувати наводками, — це головна причина обрати саме такий мікрофон, а не
-аналоговий капсуль із підсилювачем.
+INMP441 — a digital MEMS microphone with an I2S output, on a round breakout
+board (headers included, not yet soldered). A digital output means there is no
+analog signal on the run from microphone to board that stray pickup could
+corrupt — that is the main reason to choose this part over an analog capsule
+plus preamp.
 
-Живлення строго 3.3 В — 5 В спалить модуль. Пін L/R задає, у якому слоті
-стерео-потоку мікрофон віддає дані: на GND — лівий канал, на 3V3 — правий.
-Саме так два мікрофони працюють на одній шині I2S.
+Supply is strictly 3.3 V; 5 V will destroy the module. The L/R pin selects which
+slot of the stereo stream the microphone drives its data into: tied to GND it is
+the left channel, tied to 3V3 the right. That is exactly how two microphones
+share one I2S bus.
 
-Кількість: 3 (по одному на вершину трикутника, база близько 15 см).
+Quantity: 3 (one per triangle vertex, baseline about 15 cm).
 
-### Модуль microSD
+### microSD module
 
-![Модуль microSD](imgs/stcard-slot.jpg)
+![microSD module](imgs/stcard-slot.jpg)
 
-Тримач картки microSD з інтерфейсом SPI (виводи GND, MISO, SCK, MOSI, CS,
-живлення). Пише сирі 3-канальні записи (WAV) і лог детекцій та азимутів.
-Записи потрібні насамперед для офлайн-налагодження алгоритму на комп'ютері:
-значно легше крутити параметри фільтра й кореляції на Python над готовим
-файлом, ніж перепрошивати плату на кожну ітерацію.
+A microSD card holder with an SPI interface (GND, MISO, SCK, MOSI, CS, power).
+It stores raw 3-channel recordings (WAV) plus a log of detections and azimuths.
+The recordings matter mostly for debugging the algorithm offline on a computer:
+tuning filter and correlation parameters in Python against a saved file is far
+easier than reflashing the board on every iteration.
 
-Перед підключенням варто перевірити, на яку напругу розрахований саме цей
-модуль: компактні платки зазвичай живляться напряму від 3.3 В без власного
-стабілізатора, тоді як більші мають LDO і чекають 5 В.
+Check the supply voltage this particular module expects before wiring it up:
+compact boards are usually fed 3.3 V directly with no onboard regulator, while
+larger ones carry an LDO and expect 5 V.
 
-Кількість: 1 (плюс сама картка).
+Quantity: 1 (plus the card itself).
 
-### Решта збірки
+### Rest of the build
 
-- Пласка жорстка основа для масиву (фанера, FR4 або друкована рамка) — вершини
-  трикутника мають бути зафіксовані з точністю до кількох міліметрів, бо
-  похибка геометрії напряму перетворюється на похибку азимута.
-- Поролонові ветрозахисні насадки на кожен мікрофон: вітер — головний
-  руйнівник TDOA на вулиці.
-- Протоборд, дроти, пасивні компоненти. Лінії I2S тримати короткими
-  (10–15 см), для рознесених мікрофонів — кручена пара або екранований кабель.
-- Живлення: USB-C 5 В на столі; для поля — 18650 з платою захисту і
-  стабілізацією на 3.3 В / 5 В.
-- Пізніше: герметичний корпус (IP) і кріплення для підняття масиву над землею.
+- A flat, rigid base for the array (plywood, FR4, or a printed frame) — the
+  triangle vertices must be fixed to within a few millimeters, because geometric
+  error maps directly onto azimuth error.
+- Foam windscreens for every microphone: wind is the main TDOA killer outdoors.
+- Protoboard, wire, passives. Keep I2S runs short (10–15 cm); for spatially
+  separated microphones use twisted pairs or shielded cable.
+- Power: USB-C 5 V on the bench; for the field, an 18650 with a protection board
+  and 3.3 V / 5 V regulation.
+- Later: a weatherized (IP-rated) enclosure and a mount that raises the array
+  off the ground.
 
-## Стан проєкту
+## Project status
 
-Компоненти закуплені, збірка ще не починалася. Наступний крок — підняти
-захват із двох I2S-контролерів і **довести** вирівнювання трьох потоків по
-семплах. Це блокує все інше: без підтвердженої синхронізації обчислення
-напрямку не має сенсу.
+Components are in hand; assembly has not started. Next step is bringing up
+capture on both I2S controllers and **proving** that the three streams are
+sample-aligned. This gates everything else: without confirmed synchronization,
+direction estimation is meaningless.
