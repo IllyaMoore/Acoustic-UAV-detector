@@ -22,6 +22,53 @@ three-microphone array yields azimuth only — no elevation.
 Technical details (pin map, array geometry, signal-processing pipeline) live in
 [CLAUDE.md](CLAUDE.md).
 
+## How it is wired
+
+![Clock and data topology](imgs/sotmap-1.jpg)
+
+An I2S bus carries two channels, so three microphones need both of the chip's I2S
+controllers. The important part of the design is that only **one** of them
+generates the clock. The clock pair — SCK (bit clock) and WS (which channel is on
+the wire) — leaves the first controller, runs as a shared bus to all three
+microphones, and also feeds back into the second controller, which is configured
+as a slave and generates nothing.
+
+Only the data lines are separate: `SD_A` brings back microphones M1 and M2 as one
+stereo stream, `SD_B` brings back M3 on its own. The card sits on SPI at 3.3 V.
+
+The point of the single clock is that every microphone samples on the same clock
+edge, so the three streams cannot drift apart — which is exactly what would
+happen with two independent clocks. What can still differ is the instant each
+receive buffer starts filling, and that appears as a fixed offset of a whole
+number of samples between the two data lines. A fixed offset is harmless: measure
+it once, subtract it forever. Proving that it really is fixed — the same after
+every reboot, stable over a long recording — is the first milestone of the build.
+
+## The array
+
+![Array geometry](imgs/x-1.jpg)
+
+Three microphones on an equilateral triangle with 150 mm sides: M1 at the apex,
+M2 and M3 at the base, and the centroid marked in the middle. Each microphone is
+86.6 mm from the centre. Bearings are reported relative to M1, so whichever frame
+is built, the M1 corner has to be marked physically and its real-world heading
+noted when the array is set up — otherwise an azimuth means nothing.
+
+There are two ways to hold the microphones in that shape. One is a solid flat
+plate with the microphones at its corners: simple and rigid, but the plate is a
+reflecting surface directly under the capsules and it catches wind. The other is
+a three-armed frame on a central mast:
+
+![Three-armed frame, seen from above](imgs/y-1.1.jpg)
+![The same frame, seen edge-on](imgs/y-1-2.jpg)
+
+Seen from above it is the same triangle; seen edge-on, all three capsules sit on
+one horizontal plane with the hub supported from below, so the mast and the
+electronics stay out of the acoustic path. It offers the wind much less to push
+against, but thin arms flex — and flex is geometric error, which turns straight
+into bearing error. Both options put the microphones in identical positions, so
+this is a construction choice, not a change to the algorithm.
+
 ## Components
 
 ### Microcontroller
@@ -32,11 +79,9 @@ A devkit board built around the ESP-WROOM-32 module: 30 pins, USB-C for power
 and flashing. The brain of the device — it reads the microphones, runs the
 correlation math, and writes results to the card.
 
-The critical property is that the chip has **two** independent I2S controllers.
-One controller serves only two microphones (the left and right channels of a
-single stereo stream), so the third microphone goes on the second controller.
-Both must run off synchronized clocking; otherwise the streams drift relative to
-one another and all of the direction math becomes invalid.
+The critical property is that the chip has **two** independent I2S controllers,
+which is what makes three microphones possible at all — see the wiring section
+above for how they share a clock.
 
 Quantity: 1.
 
@@ -67,17 +112,18 @@ The recordings matter mostly for debugging the algorithm offline on a computer:
 tuning filter and correlation parameters in Python against a saved file is far
 easier than reflashing the board on every iteration.
 
-Check the supply voltage this particular module expects before wiring it up:
-compact boards are usually fed 3.3 V directly with no onboard regulator, while
-larger ones carry an LDO and expect 5 V.
+This is the compact variant, with neither an onboard regulator nor a level
+shifter, so it runs directly on 3.3 V — the same rail as the microphones. (The
+larger modules, the ones carrying an LDO, are what expect 5 V; this is not one of
+those.)
 
 Quantity: 1 (plus the card itself).
 
 ### Rest of the build
 
-- A flat, rigid base for the array (plywood, FR4, or a printed frame) — the
-  triangle vertices must be fixed to within a few millimeters, because geometric
-  error maps directly onto azimuth error.
+- A rigid frame for the array — plate or three arms, as above. Either way the
+  vertices must be fixed to within a few millimeters, because geometric error maps
+  directly onto azimuth error.
 - Foam windscreens for every microphone: wind is the main TDOA killer outdoors.
 - Protoboard, wire, passives. Keep I2S runs short (10–15 cm); for spatially
   separated microphones use twisted pairs or shielded cable.
@@ -88,7 +134,14 @@ Quantity: 1 (plus the card itself).
 
 ## Project status
 
-Components are in hand; assembly has not started. Next step is bringing up
-capture on both I2S controllers and **proving** that the three streams are
-sample-aligned. This gates everything else: without confirmed synchronization,
-direction estimation is meaningless.
+Components are in hand and the wiring and array layouts are drawn; assembly has
+not started. Next step is bringing up capture on both I2S controllers and
+**proving** that the offset between the two data lines is a constant. This gates
+everything else: without confirmed synchronization, direction estimation is
+meaningless.
+
+The test for it is simple. Put an impulse source — a clap, or a click from a small
+speaker — directly above the centroid, equally distant from all three microphones.
+The true time difference is then zero for every pair, so whatever delay the
+correlation reports is the buffer offset itself, and it can be measured, repeated
+across reboots, and watched for drift.
