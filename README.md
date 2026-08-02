@@ -22,9 +22,16 @@ three-microphone array yields azimuth only — no elevation.
 Technical details (pin map, array geometry, signal-processing pipeline) live in
 [CLAUDE.md](CLAUDE.md).
 
-## How it is wired
+## The whole thing on one page
 
-![Clock and data topology](imgs/sotmap-1.jpg)
+![System schematic: wiring, board sizes, head assembly, array geometry](imgs/schema.jpg)
+
+Everything the build needs is on this one sheet: the signal chain down the left,
+the board footprints and the head assembly across the top right, and the array
+geometry — triangle and edge-on view — along the bottom right. The sections below
+just read it out in words.
+
+## How it is wired
 
 An I2S bus carries two channels, so three microphones need both of the chip's I2S
 controllers. The important part of the design is that only **one** of them
@@ -46,8 +53,6 @@ every reboot, stable over a long recording — is the first milestone of the bui
 
 ## The array
 
-![Array geometry](imgs/x-1.jpg)
-
 Three microphones on an equilateral triangle with 150 mm sides: M1 at the apex,
 M2 and M3 at the base, and the centroid marked in the middle. Each microphone is
 86.6 mm from the centre. Bearings are reported relative to M1, so whichever frame
@@ -56,24 +61,24 @@ noted when the array is set up — otherwise an azimuth means nothing.
 
 There are two ways to hold the microphones in that shape. One is a solid flat
 plate with the microphones at its corners: simple and rigid, but the plate is a
-reflecting surface directly under the capsules and it catches wind. The other is
-a three-armed frame on a central mast:
+reflecting surface directly under the capsules and it catches wind. The other —
+the one drawn as the *head* on the schematic — is a three-armed frame with the
+electronics box slung underneath the hub.
 
-![Three-armed frame, seen from above](imgs/y-1.1.jpg)
-![The same frame, seen edge-on](imgs/y-1-2.jpg)
+The edge-on view at the bottom of the sheet shows why that arrangement is worth
+the trouble: all three capsules sit on one horizontal plane, and everything
+solid hangs below them, out of the acoustic path. It also offers the wind far
+less to push against. The cost is stiffness — thin arms flex, and flex is
+geometric error, which turns straight into bearing error. Both options put the
+microphones in identical positions, so this is a construction choice, not a
+change to the algorithm.
 
-Seen from above it is the same triangle; seen edge-on, all three capsules sit on
-one horizontal plane with the hub supported from below, so the mast and the
-electronics stay out of the acoustic path. It offers the wind much less to push
-against, but thin arms flex — and flex is geometric error, which turns straight
-into bearing error. Both options put the microphones in identical positions, so
-this is a construction choice, not a change to the algorithm.
+For sizing the head: the ESP32 board is about 55 mm long and the microSD module
+about 30 mm, which is what the box under the hub has to swallow.
 
 ## Components
 
 ### Microcontroller
-
-![ESP32 board](imgs/controller.jpg)
 
 A devkit board built around the ESP-WROOM-32 module: 30 pins, USB-C for power
 and flashing. The brain of the device — it reads the microphones, runs the
@@ -86,8 +91,6 @@ above for how they share a clock.
 Quantity: 1.
 
 ### Microphones
-
-![INMP441 microphone module](imgs/microphone.jpg)
 
 INMP441 — a digital MEMS microphone with an I2S output, on a round breakout
 board (headers included, not yet soldered). A digital output means there is no
@@ -103,8 +106,6 @@ share one I2S bus.
 Quantity: 3 (one per triangle vertex, baseline about 15 cm).
 
 ### microSD module
-
-![microSD module](imgs/stcard-slot.jpg)
 
 A microSD card holder with an SPI interface (GND, MISO, SCK, MOSI, CS, power).
 It stores raw 3-channel recordings (WAV) plus a log of detections and azimuths.
