@@ -19,9 +19,6 @@ What it cannot do: range is modest (hundreds of meters, depending on background
 noise and drone type), wind and urban noise degrade accuracy, and a flat
 three-microphone array yields azimuth only — no elevation.
 
-Technical details (pin map, array geometry, signal-processing pipeline) live in
-[CLAUDE.md](CLAUDE.md).
-
 ## The whole thing on one page
 
 ![System schematic: wiring, board sizes, head assembly, array geometry](imgs/schema.jpg)
