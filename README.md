@@ -103,8 +103,8 @@ different bundle.
 
 The obvious worry with a three-armed frame is that thin arms bend, and bending is
 geometric error. Run the numbers for the leanest section the arm has ever had — a
-PETG channel 20 × 12.5 mm on 2.5 mm walls, cantilevered 86.6 mm. The v3 arm is
-stiffer than this, so read the table as an upper bound:
+PETG channel 20 × 12.5 mm on 2.5 mm walls, cantilevered 86.6 mm — read the table
+as an upper bound:
 
 | Load | Tip deflection |
 |---|---|
@@ -135,7 +135,7 @@ means nothing.
 
 ### The microphone seat
 
-![Arm tip: flush Ø15.6 recess, Ø14 clearance cavity below](imgs/arm_tip.jpg)
+![Arm tip: the board flush in its recess, acoustic port at the centre](imgs/mic_seated.jpg)
 
 The INMP441 breakout is a **15 mm** round board, 1 mm thick. (The first printed
 iteration was built for 13 mm and the board would not go in — measure yours before
@@ -155,12 +155,20 @@ centres the board mechanically, which is where the 1 mm budget is actually spent
 Clearance is a generous 0.3 mm per side; the resulting 0.3 mm of possible
 off-centre costs 0.06° of azimuth, so there is nothing to gain by making it tight.
 
-Below it is a Ø14 × 5 mm clearance cavity, leaving a 0.8 mm ledge at R7.0–7.8.
+Below it is a Ø14 × 8.5 mm clearance cavity, leaving a 0.8 mm ledge at R7.0–7.8.
 The six pads run close to the board's rim, so solder joints may still touch that
 ledge and hold one edge of the board a few tenths high. That is deliberate and
 harmless: in-plane position — the part that matters — is set by the recess wall,
 not by the ledge, and a 0.3 mm out-of-plane tilt costs about 0.05° for a source
 at 30° elevation. Trim the solder flush if you like; it changes almost nothing.
+
+Recess plus cavity make the pocket **9.5 mm deep** — it was 6.0 mm until the board
+was fitted with pins, which take the board-plus-legs stack to about 9 mm. The half
+millimetre left over is not slack, it is the whole point: if the pocket were
+exactly 9 mm, whether the board landed on the ledge or on its own pin tips would be
+a coin toss, and landing on the pins would lift it off the seat and throw away the
+centring the recess exists to provide. The seat has to be the only thing the board
+touches.
 
 Fitting the Ø15.6 recess is what drove the tip to Ø20 and, with it, the arm to a
 constant 20 mm width. At the old Ø16 tip there would have been 0.2 mm of wall left
@@ -173,9 +181,9 @@ Straight down through the cavity floor runs a **Ø10 hole to the underside of th
 arm**. Its job is to get a board back out: seated in a 0.3 mm recess and held by
 tape, a 15 mm disc is otherwise very hard to lift without levering against the
 0.8 mm ledge and breaking it. Push a rod up the hole instead and the board lifts
-straight out. It costs nothing structurally — 6.5 mm of solid tip sits below the
-cavity, the hole is R5 and the seat ledge is at R7.0–7.8, so they never meet — and
-it doubles as a drain for anything that finds its way into the cavity.
+straight out. It costs nothing structurally — 3 mm of solid tip still sits below
+the cavity, and the hole is R5 while the seat ledge is at R7.0–7.8, so they never
+meet — and it doubles as a drain for anything that finds its way into the cavity.
 
 Rain is unresolved. The port faces up, which is right for a source overhead and
 wrong for weather. A hydrophobic PTFE membrane under the board is the standard
@@ -186,22 +194,26 @@ is common-mode and harmless.
 
 ![Section through the arm: microphone cavity, cable tunnel, channel](imgs/arm_section.jpg)
 
-The cable never leaves the structure. From the pads under the board it drops into
-the Ø14 cavity, crosses a 5 × 2 mm tunnel lying on the cavity floor, runs the
-length of the arm inside the gabled channel, passes under the tab through a groove
-that the hub pocket floor closes into a tunnel, follows a groove in the lower plate
-to the centre, and drops through the Ø16 hole into the tube. It exits under the
-foot.
+The cable never leaves the structure. From the pin tips under the board it drops to
+the floor of the Ø14 cavity, crosses a 5 × 2.75 mm tunnel that sits on that floor,
+runs the length of the arm inside the channel, passes under the tab through a
+groove that the hub pocket floor closes into a tunnel, follows a groove in the
+lower plate to the centre, and drops through the Ø16 hole into the tube. It exits
+under the foot.
 
-Five conductors per microphone (VDD, GND, SD, SCK, WS) fit the 10 mm² tunnel with
-room to spare. The tunnel also vents the microphone cavity, so it is not a sealed
-volume that pumps with temperature.
+Five conductors per microphone (VDD, GND, SD, SCK, WS) fit the 13.75 mm² tunnel
+with room to spare. The tunnel also vents the microphone cavity, so it is not a
+sealed volume that pumps with temperature. It sits on the cavity floor rather than
+part-way up the wall because that is where the pin tips end — anywhere higher and
+the wires would have to be led back up before they could leave.
 
-The groove under the tab is 12 mm wide, not 5. The two M3 bolts run down the
-centreline of the tab and pass straight through that groove; at 5 mm the bolt
-shanks left 0.8 mm of clear width on either side, which is not a cable route. At
-12 mm the bundle passes either side of each bolt. The matching groove in the hub's
-lower plate was widened to match.
+The groove under the tab is 6 mm wide and centred, which puts the two M3 bolts
+straight through the middle of it. That leaves 1.3 mm of clear width either side of
+each bolt shank — enough for thin wire split two and three, but it makes assembly
+order matter: **push the wires aside before tightening**, or the bolt will nip the
+insulation and you will not see it happen. Moving the bolts off the centreline
+would clear the path completely, at the cost of relocating the holes and nut
+pockets in both hub plates.
 
 The 5 mm of solid material between the channel and the cavity is deliberate — it
 is what carries the seat ledge. Running the channel all the way out to the cavity
@@ -255,19 +267,22 @@ able to go back to the file it came from.
 
 | STL | Qty | Mass | Size (mm) |
 |---|---|---|---|
-| `arm_v3_mic15.stl` | 3 | 14.5 g | 82.6 × 20 × 12.5 |
+| `arm_body_v4_mic15.stl` | 3 | 11.2 g | 82.6 × 20 × 12.5 |
+| `arm_lid_v2_mic15_slide.stl` | 3 | 2.0 g | 34.2 × 14.6 × 3.5 |
 | `hub_top_v1.stl` | 1 | 26.4 g | 73.5 × 84.9 × 8 |
 | `hub_bottom_v1.stl` | 1 | 25.8 g | 73.5 × 84.9 × 8 |
 | `tube_collar_top_v2_tube25.stl` | 1 | 22.4 g | 52 × 52 × 31 |
 | `tube_foot_v2_tube25.stl` | 1 | 47.4 g | 176 × 203 × 32 |
 
-166 g of PETG in total, plus the tube.
+162 g of PETG in total, plus the tube.
 
-For the two-part arm, swap `arm_v3_mic15.stl` for `arm_body_v3_mic15.stl` (11.0 g,
-82.6 × 20 × 12.5) plus `arm_lid_v2_mic15_slide.stl` (2.0 g, 34.2 × 14.6 × 3.5) —
-13.0 g per arm, 161 g for the build. Same geometry and the same 86.6 mm radius as
-the one-piece; take one or the other, never both. The lid did not change between
-v2 and v3, so it keeps its v2 name.
+The two-part arm is the one to build. `arm_v4_mic15.stl` (11.5 g, same envelope)
+is the same arm in one piece, for anyone who would rather not have a sliding lid;
+it prints with one more bridge and cannot be re-opened to change a wire. Take one
+or the other, never both.
+
+The lid has not changed since v2, so it keeps its v2 name — the version number
+tracks the part, not the build.
 
 **Superseded — kept for reference, do not print:**
 
@@ -276,8 +291,10 @@ v2 and v3, so it keeps its v2 name.
 | `arm_v1_mic13.stl` | seat built for a Ø13 board; the real board is Ø15 |
 | `arm_body_v1_mic13.stl` | same, and its lid needed glue |
 | `arm_lid_v1_mic13_glued.stl` | superseded by the slide-in lid |
-| `arm_v2_mic15.stl` | flat-ceilinged channel: a 15 mm bridge, 32.6 mm long |
-| `arm_body_v2_mic15.stl` | no access hole under the microphone |
+| `arm_v2_mic15.stl` | 6 mm microphone pocket — too shallow once the board had pins |
+| `arm_body_v2_mic15.stl` | same |
+| `arm_v3_mic15.stl` | gabled the cable channel, which never needed it — see below |
+| `arm_body_v3_mic15.stl` | same |
 | `tube_collar_top_v1_tube25.stl` | pinch-clamp ears hang unsupported over the flange |
 | `tube_foot_v1_tube25.stl` | same |
 
@@ -303,38 +320,35 @@ flatter — but the root tab ends up floating 6.5 mm above the bed over a 28 × 
 area, and that is a support block you then have to dig out of PETG. Printed the
 right way up, the tab and the side walls sit flat on the bed.
 
-The cable channel used to be the problem: 15 mm wide with a flat ceiling, it was a
-32.6 mm long bridge and by far the largest unsupported span in the build. In v3 it
-is **gabled** — the walls run straight up to z −7.5 and then close at 45° to a
-ridge at z −2.5, where the flat ceiling used to be. Nothing is bridged, because
-every layer of the roof overhangs the one below it by less than its own width.
-That is a better answer than simply narrowing the span: a 45° roof does not sag at
-all, whereas a short bridge still sags a little.
+![Arm cross-section: the channel, with the lid seated in its slot](imgs/arm_channel.jpg)
 
-The channel is 10 mm wide instead of 15, which costs 2.6 g per arm and buys two
-things besides the roof — the side walls double from 2.5 to 5 mm, and with them
-the bed contact, to roughly 1040 mm².
-
-![Arm cross-section: the gabled cable channel](imgs/arm_channel.jpg)
-
-What is left are two small ceilings, and both are genuine bridges — the extruder
-pulls the filament between two walls, nothing is deposited underneath, and neither
-surface is one anybody sees or measures:
+The two-part arm has exactly two internal ceilings, and both are genuine bridges —
+the extruder pulls the filament between two walls, nothing is deposited underneath,
+and neither surface is one anybody sees or measures:
 
 | Ceiling | Span | Where |
 |---|---|---|
 | Cable tunnel | 5 mm | between cavity and channel |
-| Tab cable groove | 12 mm | under the root tab |
+| Tab cable groove | 6 mm | under the root tab |
 
-PETG bridges these fine with the part cooling fan on; use a brim anyway.
+The cable channel itself is not on that list: with the lid off it has no ceiling at
+all, and the lid closes it after printing. The one-piece arm adds a third bridge,
+the channel ceiling, 15 mm wide and 32.6 mm long.
 
-The two-part arm has only these same two: without a lid over it, the body's cable
-channel has no ceiling at all.
+The tab groove was 12 mm and is now 6, which halves that bridge. It could not
+simply be narrowed and left where it was — see [the cable route](#the-cable-route)
+for the bolts that run through it.
 
-If you would rather not bridge at all, `arm_body_v2_mic15.stl` +
-`arm_lid_v2_mic15_slide.stl` are the same arm as two parts. **No glue and no
-fasteners** — the lid is a T-bar that slides into a matching T-slot in the body,
-from the root end, until it stops against the tip block.
+PETG bridges all of these fine with the part cooling fan on; use a brim anyway.
+
+There was briefly a v3 that replaced the channel ceiling with a 45° gable so it
+would not bridge at all. It worked, but it solved a problem the two-part arm does
+not have — the lid already removes that ceiling — and it cost 2.6 g an arm to do
+it. Kept in the superseded list as a record, not as an option.
+
+`arm_body_v4_mic15.stl` + `arm_lid_v2_mic15_slide.stl` go together with **no glue
+and no fasteners** — the lid is a T-bar that slides into a matching T-slot in the
+body, from the root end, until it stops against the tip block.
 
 ![Arm as body and slide-in lid](imgs/arm_split.jpg)
 
