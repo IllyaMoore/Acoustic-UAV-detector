@@ -215,6 +215,13 @@ insulation and you will not see it happen. Moving the bolts off the centreline
 would clear the path completely, at the cost of relocating the holes and nut
 pockets in both hub plates.
 
+The lower hub plate carries the cable the rest of the way. Where the tab ends, a
+tunnel runs on under the parting face from the tab pocket to the Ø16 bore in the
+centre — 6 mm wide, 2 mm tall, roofed over for its whole 6 mm length. It is the
+one closed passage in the hub, and it has to be the same width as the groove that
+feeds it: it was 12 mm to match the old groove, and halving one without the other
+would just have moved the bridge rather than shrunk it.
+
 The 5 mm of solid material between the channel and the cavity is deliberate — it
 is what carries the seat ledge. Running the channel all the way out to the cavity
 would leave the ledge, and therefore the microphone, cantilevered over a void.
@@ -270,7 +277,7 @@ able to go back to the file it came from.
 | `arm_body_v4_mic15.stl` | 3 | 11.2 g | 82.6 × 20 × 12.5 |
 | `arm_lid_v2_mic15_slide.stl` | 3 | 2.0 g | 34.2 × 14.6 × 3.5 |
 | `hub_top_v1.stl` | 1 | 26.4 g | 73.5 × 84.9 × 8 |
-| `hub_bottom_v1.stl` | 1 | 25.8 g | 73.5 × 84.9 × 8 |
+| `hub_bottom_v2.stl` | 1 | 26.2 g | 73.5 × 84.9 × 8 |
 | `tube_collar_top_v2_tube25.stl` | 1 | 22.4 g | 52 × 52 × 31 |
 | `tube_foot_v2_tube25.stl` | 1 | 47.4 g | 176 × 203 × 32 |
 
@@ -295,6 +302,7 @@ tracks the part, not the build.
 | `arm_body_v2_mic15.stl` | same |
 | `arm_v3_mic15.stl` | gabled the cable channel, which never needed it — see below |
 | `arm_body_v3_mic15.stl` | same |
+| `hub_bottom_v1.stl` | 12 mm cable tunnels, widened to match the arm groove that has since halved |
 | `tube_collar_top_v1_tube25.stl` | pinch-clamp ears hang unsupported over the flange |
 | `tube_foot_v1_tube25.stl` | same |
 
