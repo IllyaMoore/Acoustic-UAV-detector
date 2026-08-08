@@ -265,10 +265,13 @@ feet have Ø5 mm holes for ground pegs; outdoors, use them.
 
 ### Parts and hardware
 
-File names carry an iteration number and the dimension that defines it, so
-superseded versions can sit alongside current ones without being confused for
-them. Nothing is ever deleted — a printed part is evidence, and you want to be
-able to go back to the file it came from.
+`hardware/` holds only what you would print today. Everything that has been
+replaced lives in `hardware/superseded/`, so you cannot pick the wrong file by
+accident but nothing is lost either — a printed part is evidence, and you want to
+be able to go back to the file it came from.
+
+File names carry an iteration number and the dimension that defines it, so a part
+that was never revised keeps its `_v1` and that is not a mistake.
 
 **Build this:**
 
@@ -291,7 +294,7 @@ or the other, never both.
 The lid has not changed since v2, so it keeps its v2 name — the version number
 tracks the part, not the build.
 
-**Superseded — kept for reference, do not print:**
+**In `hardware/superseded/` — kept for reference, do not print:**
 
 | STL | Why it was replaced |
 |---|---|
