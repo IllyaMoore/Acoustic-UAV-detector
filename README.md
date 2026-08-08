@@ -334,10 +334,11 @@ The two-part arm has exactly two internal ceilings, and both are genuine bridges
 the extruder pulls the filament between two walls, nothing is deposited underneath,
 and neither surface is one anybody sees or measures:
 
-| Ceiling | Span | Where |
-|---|---|---|
-| Cable tunnel | 5 mm | between cavity and channel |
-| Tab cable groove | 6 mm | under the root tab |
+| Ceiling | Span | Area | Where |
+|---|---|---|---|
+| Tab cable groove | 6 mm | 138 mm² | under the root tab |
+| Cable tunnel | 5 mm | 26 mm² | between cavity and channel |
+| Lid undercut | 1.5 mm | 104 mm² | the ledge the lid flange slides under |
 
 The cable channel itself is not on that list: with the lid off it has no ceiling at
 all, and the lid closes it after printing. The one-piece arm adds a third bridge,
@@ -348,6 +349,26 @@ simply be narrowed and left where it was — see [the cable route](#the-cable-ro
 for the bolts that run through it.
 
 PETG bridges all of these fine with the part cooling fan on; use a brim anyway.
+
+Every printed part has been swept for downward-facing surfaces in the orientation
+its STL is saved in. Nothing else in the build bridges more than 6 mm:
+
+| Part | Widest ceiling | What it is |
+|---|---|---|
+| `hub_top_v1` | **8.9 mm** | the engraved M1 arrow |
+| `hub_bottom_v2` | 6.0 mm | the cable tunnels |
+| `tube_collar_top_v2`, `tube_foot_v2` | under 1 mm | crowns of the horizontal bolt holes |
+| `case_base_v2`, `case_lid_v2` | 3.1 mm | board shelves and openings |
+| `arm_lid_v2`, `case_clamp_v2` | none | print with no overhang at all |
+
+The M1 arrow is the widest span left in the build, and it is the one that matters
+least: it is 1.2 mm deep, it faces the bed, and the surface it produces is the
+inside of a decorative groove. Cutting the arrow as an outline instead of a solid
+triangle would take it to about 1.5 mm if that ever became worth doing.
+
+The horizontal bolt holes in the tube fittings are a different animal — a hole
+drilled sideways always overhangs at its crown, whatever you do. They come out
+slightly oval; ream them if the M4 is tight.
 
 There was briefly a v3 that replaced the channel ceiling with a 45° gable so it
 would not bridge at all. It worked, but it solved a problem the two-part arm does
