@@ -76,8 +76,8 @@ hanging under the hub, so the frame carries nothing but itself.
 
 ![The array assembled: three arms, sandwich hub, tube mast, tripod foot](imgs/array_assembly.jpg)
 
-Three identical arms bolt into a two-plate hub; the hub clamps onto a bought tube
-that stands in a printed tripod foot. Everything is PETG, printed without
+Three identical arms bolt into a two-plate hub; the hub bolts to a socket on a
+bought tube, which stands in a printed tripod foot. Everything is PETG, printed without
 supports. STL files are in [`hardware/`](hardware/).
 
 ### What accuracy is actually needed
@@ -193,16 +193,32 @@ would leave the ledge, and therefore the microphone, cantilevered over a void.
 
 ### The mast
 
-The mast is a **bought Ø25 mm tube**, held by two printed clamps with pinch
-slots. It is not printed, for two reasons. An aluminium tube of Ø25 × 1.5 mm has
+The mast is a **bought Ø25 mm tube**, held at each end by a printed socket. It is
+not printed, for two reasons. An aluminium tube of Ø25 × 1.5 mm has
 `EI ≈ 5.4·10⁸ N·mm²` against `3.5·10⁷` for a printed PETG mast of the same
 diameter — roughly **15× stiffer**. And a 200 mm printed tower is a four-hour
-single-column print that can fail at any point in it, whereas the two clamps are
+single-column print that can fail at any point in it, whereas the two fittings are
 32 mm tall.
 
+Each fitting is a plain flanged socket: Ø25.4 bore, 26 mm deep, with a shoulder
+that stops the tube square, and one M4 bolt straight through both walls and the
+tube. Drill the tube using the printed part as the jig — slide it in, run a
+Ø4.5 mm bit through the moulded holes, bolt it up.
+
+Earlier versions used a pinch clamp so the tube would not have to be drilled.
+That design is kept as `*_v1_*` but should not be printed: its clamp ears hang
+7 mm above the flange with nothing under them, and the obvious fix defeats itself.
+Buttress an ear down to the flange and the clamp is welded shut — a pinch works
+only because its halves are free to move. Running the slot through the flange too
+would make the whole part a C, but then the three M4 bolts holding that flange to
+the hub would prise the clamp back open. A through-bolt removes the ears, the
+slot and the nut pockets in one move, and is stronger and more positive than the
+clamp ever was. It costs one drilled hole per joint, in a tube you are cutting to
+length anyway.
+
 Aluminium is the best choice, PVC conduit the cheapest, acrylic acceptable but
-brittle — do not overtighten a pinch clamp on acrylic. Inner diameter must be at
-least 18 mm; the cable runs down inside the tube and exits under the foot.
+brittle. Inner diameter must be at least 18 mm; the cable runs down inside the
+tube and exits under the foot.
 
 Tube length is free. With 300 mm, the acoustic plane sits 328 mm above ground.
 
@@ -226,10 +242,10 @@ able to go back to the file it came from.
 | `arm_v2_mic15.stl` | 3 | 11.1 g | 82.6 × 20 × 12.5 |
 | `hub_top_v1.stl` | 1 | 26.4 g | 73.5 × 84.9 × 8 |
 | `hub_bottom_v1.stl` | 1 | 26.2 g | 73.5 × 84.9 × 8 |
-| `tube_collar_top_v1_tube25.stl` | 1 | 26.9 g | 54.5 × 52 × 31 |
-| `tube_foot_v1_tube25.stl` | 1 | 52.2 g | 176 × 203 × 32 |
+| `tube_collar_top_v2_tube25.stl` | 1 | 22.1 g | 52 × 52 × 31 |
+| `tube_foot_v2_tube25.stl` | 1 | 47.4 g | 176 × 203 × 32 |
 
-165 g of PETG in total, plus the tube.
+155 g of PETG in total, plus the tube.
 
 For the two-part arm, swap `arm_v2_mic15.stl` for `arm_body_v2_mic15.stl` (12.4 g,
 82.6 × 20 × 12.5) plus `arm_lid_v2_mic15_slide.stl` (1.5 g, 34.2 × 14.6 × 2.5) —
@@ -243,10 +259,12 @@ the one-piece; take one or the other, never both.
 | `arm_v1_mic13.stl` | seat built for a Ø13 board; the real board is Ø15 |
 | `arm_body_v1_mic13.stl` | same, and its lid needed glue |
 | `arm_lid_v1_mic13_glued.stl` | superseded by the slide-in lid |
+| `tube_collar_top_v1_tube25.stl` | pinch-clamp ears hang unsupported over the flange |
+| `tube_foot_v1_tube25.stl` | same |
 
 - 6 × M3×16 + 6 nuts — arms to hub
-- 3 × M4×12 + 3 nuts — hub to tube clamp
-- 2 × M4×20 + 2 nuts — the two pinch clamps
+- 3 × M4×12 + 3 nuts — hub to the top fitting
+- 2 × M4×40 + 2 nyloc nuts + 4 washers — through each fitting and the tube
 
 No heat-set inserts anywhere: every bolt lands in a hex nut pocket, which is
 both cheaper and stronger in PETG than an insert.
