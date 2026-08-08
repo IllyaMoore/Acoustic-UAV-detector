@@ -162,6 +162,24 @@ wrong for weather. A hydrophobic PTFE membrane under the board is the standard
 answer — it adds a phase shift, but an identical one on all three channels, so it
 is common-mode and harmless.
 
+### The cable route
+
+![Section through the arm: microphone cavity, cable tunnel, channel](imgs/arm_section.jpg)
+
+The cable never leaves the structure. From the pads under the board it drops into
+the Ø12 cavity, crosses a 5 × 2 mm tunnel lying on the cavity floor, runs the
+length of the arm inside the U-channel, passes under the tab through a groove that
+the hub pocket floor closes into a tunnel, follows a groove in the lower plate to
+the centre, and drops through the Ø16 hole into the tube. It exits under the foot.
+
+Five conductors per microphone (VDD, GND, SD, SCK, WS) fit the 10 mm² tunnel with
+room to spare. The tunnel also vents the microphone cavity, so it is not a sealed
+volume that pumps with temperature.
+
+The 5 mm of solid material between the channel and the cavity is deliberate — it
+is what carries the seat ledge. Running the channel all the way out to the cavity
+would leave the ledge, and therefore the microphone, cantilevered over a void.
+
 ### The mast
 
 The mast is a **bought Ø25 mm tube**, held by two printed clamps with pinch
@@ -217,10 +235,18 @@ flatter — but the root tab ends up floating 6.5 mm above the bed over a 28 × 
 area, and that is a support block you then have to dig out of PETG. Printed the
 right way up, the tab and the side walls sit flat on the bed.
 
-That leaves exactly one overhang: the ceiling of the cable channel, a 15 mm span.
-It is a **bridge, not a support** — the extruder pulls it between two walls, no
-material is deposited underneath, and the surface it produces is the inside of a
-cable trough where nobody cares. Use a brim; bed contact is only about 890 mm².
+What that leaves is three internal ceilings, and every one of them is a **bridge,
+not a support** — the extruder pulls the filament between two walls, nothing is
+deposited underneath, and none of these surfaces is one anybody sees or measures:
+
+| Ceiling | Span | Where |
+|---|---|---|
+| Cable channel | 15 → 11 mm | full length of the arm |
+| Cable tunnel | 5 mm | between cavity and channel |
+| Tab cable groove | 5 mm | under the root tab |
+
+PETG bridges these fine with the part cooling fan on. Use a brim — bed contact is
+only about 890 mm², because the beam touches the plate on two 2.5 mm walls.
 
 If you would rather not bridge at all, `arm_lid.stl` + `arm_body.stl` are the same
 arm split along the channel ceiling — print both flat, glue together.
