@@ -102,8 +102,9 @@ different bundle.
 ### Arms do not flex — joints slip
 
 The obvious worry with a three-armed frame is that thin arms bend, and bending is
-geometric error. Run the numbers for a PETG channel section 20 × 12.5 mm with a
-2.5 mm wall, cantilevered 86.6 mm:
+geometric error. Run the numbers for the leanest section the arm has ever had — a
+PETG channel 20 × 12.5 mm on 2.5 mm walls, cantilevered 86.6 mm. The v3 arm is
+stiffer than this, so read the table as an upper bound:
 
 | Load | Tip deflection |
 |---|---|
@@ -168,6 +169,14 @@ around the board.
 A side tunnel carries the wires into the arm's channel and vents the cavity so it
 is not a sealed pressure chamber.
 
+Straight down through the cavity floor runs a **Ø10 hole to the underside of the
+arm**. Its job is to get a board back out: seated in a 0.3 mm recess and held by
+tape, a 15 mm disc is otherwise very hard to lift without levering against the
+0.8 mm ledge and breaking it. Push a rod up the hole instead and the board lifts
+straight out. It costs nothing structurally — 6.5 mm of solid tip sits below the
+cavity, the hole is R5 and the seat ledge is at R7.0–7.8, so they never meet — and
+it doubles as a drain for anything that finds its way into the cavity.
+
 Rain is unresolved. The port faces up, which is right for a source overhead and
 wrong for weather. A hydrophobic PTFE membrane under the board is the standard
 answer — it adds a phase shift, but an identical one on all three channels, so it
@@ -178,10 +187,11 @@ is common-mode and harmless.
 ![Section through the arm: microphone cavity, cable tunnel, channel](imgs/arm_section.jpg)
 
 The cable never leaves the structure. From the pads under the board it drops into
-the Ø12 cavity, crosses a 5 × 2 mm tunnel lying on the cavity floor, runs the
-length of the arm inside the U-channel, passes under the tab through a groove that
-the hub pocket floor closes into a tunnel, follows a groove in the lower plate to
-the centre, and drops through the Ø16 hole into the tube. It exits under the foot.
+the Ø14 cavity, crosses a 5 × 2 mm tunnel lying on the cavity floor, runs the
+length of the arm inside the gabled channel, passes under the tab through a groove
+that the hub pocket floor closes into a tunnel, follows a groove in the lower plate
+to the centre, and drops through the Ø16 hole into the tube. It exits under the
+foot.
 
 Five conductors per microphone (VDD, GND, SD, SCK, WS) fit the 10 mm² tunnel with
 room to spare. The tunnel also vents the microphone cavity, so it is not a sealed
@@ -245,18 +255,19 @@ able to go back to the file it came from.
 
 | STL | Qty | Mass | Size (mm) |
 |---|---|---|---|
-| `arm_v2_mic15.stl` | 3 | 11.9 g | 82.6 × 20 × 12.5 |
+| `arm_v3_mic15.stl` | 3 | 14.5 g | 82.6 × 20 × 12.5 |
 | `hub_top_v1.stl` | 1 | 26.4 g | 73.5 × 84.9 × 8 |
 | `hub_bottom_v1.stl` | 1 | 25.8 g | 73.5 × 84.9 × 8 |
 | `tube_collar_top_v2_tube25.stl` | 1 | 22.4 g | 52 × 52 × 31 |
 | `tube_foot_v2_tube25.stl` | 1 | 47.4 g | 176 × 203 × 32 |
 
-158 g of PETG in total, plus the tube.
+166 g of PETG in total, plus the tube.
 
-For the two-part arm, swap `arm_v2_mic15.stl` for `arm_body_v2_mic15.stl` (11.6 g,
+For the two-part arm, swap `arm_v3_mic15.stl` for `arm_body_v3_mic15.stl` (11.0 g,
 82.6 × 20 × 12.5) plus `arm_lid_v2_mic15_slide.stl` (2.0 g, 34.2 × 14.6 × 3.5) —
-13.6 g per arm, 163 g for the build. Same geometry and the same 86.6 mm radius as
-the one-piece; take one or the other, never both.
+13.0 g per arm, 161 g for the build. Same geometry and the same 86.6 mm radius as
+the one-piece; take one or the other, never both. The lid did not change between
+v2 and v3, so it keeps its v2 name.
 
 **Superseded — kept for reference, do not print:**
 
@@ -265,6 +276,8 @@ the one-piece; take one or the other, never both.
 | `arm_v1_mic13.stl` | seat built for a Ø13 board; the real board is Ø15 |
 | `arm_body_v1_mic13.stl` | same, and its lid needed glue |
 | `arm_lid_v1_mic13_glued.stl` | superseded by the slide-in lid |
+| `arm_v2_mic15.stl` | flat-ceilinged channel: a 15 mm bridge, 32.6 mm long |
+| `arm_body_v2_mic15.stl` | no access hole under the microphone |
 | `tube_collar_top_v1_tube25.stl` | pinch-clamp ears hang unsupported over the flange |
 | `tube_foot_v1_tube25.stl` | same |
 
@@ -290,20 +303,32 @@ flatter — but the root tab ends up floating 6.5 mm above the bed over a 28 × 
 area, and that is a support block you then have to dig out of PETG. Printed the
 right way up, the tab and the side walls sit flat on the bed.
 
-What that leaves is three internal ceilings, and every one of them is a **bridge,
-not a support** — the extruder pulls the filament between two walls, nothing is
-deposited underneath, and none of these surfaces is one anybody sees or measures:
+The cable channel used to be the problem: 15 mm wide with a flat ceiling, it was a
+32.6 mm long bridge and by far the largest unsupported span in the build. In v3 it
+is **gabled** — the walls run straight up to z −7.5 and then close at 45° to a
+ridge at z −2.5, where the flat ceiling used to be. Nothing is bridged, because
+every layer of the roof overhangs the one below it by less than its own width.
+That is a better answer than simply narrowing the span: a 45° roof does not sag at
+all, whereas a short bridge still sags a little.
+
+The channel is 10 mm wide instead of 15, which costs 2.6 g per arm and buys two
+things besides the roof — the side walls double from 2.5 to 5 mm, and with them
+the bed contact, to roughly 1040 mm².
+
+![Arm cross-section: the gabled cable channel](imgs/arm_channel.jpg)
+
+What is left are two small ceilings, and both are genuine bridges — the extruder
+pulls the filament between two walls, nothing is deposited underneath, and neither
+surface is one anybody sees or measures:
 
 | Ceiling | Span | Where |
 |---|---|---|
-| Cable channel | 15 mm | full length of the arm |
 | Cable tunnel | 5 mm | between cavity and channel |
-| Tab cable groove | 5 mm | under the root tab |
+| Tab cable groove | 12 mm | under the root tab |
 
-PETG bridges these fine with the part cooling fan on. Use a brim — bed contact is
-only about 950 mm², because the beam touches the plate on two 2.5 mm walls.
+PETG bridges these fine with the part cooling fan on; use a brim anyway.
 
-The two-part arm has only the last two: without a lid over it, the body's cable
+The two-part arm has only these same two: without a lid over it, the body's cable
 channel has no ceiling at all.
 
 If you would rather not bridge at all, `arm_body_v2_mic15.stl` +
