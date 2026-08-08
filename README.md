@@ -208,10 +208,34 @@ PETG, chosen over PLA for outdoor service — PLA softens near 60 °C, which a d
 part in the sun will reach, and its creep under sustained load is exactly the
 slow geometric drift this instrument cannot tolerate.
 
-0.2 mm layers, 4 perimeters, 30 % gyroid infill. **No supports are needed in any
-part**, and every STL is already saved in its print orientation — drop it on the
-bed as-is. The arm lies acoustic-face-down, so the microphone seat comes out as
-the flattest, most accurate surface on the part.
+0.2 mm layers, 4 perimeters, 30 % gyroid infill. Every STL is saved in its print
+orientation — drop it on the bed as-is, and **no part needs support material.**
+
+The arm is the one that has to be printed the right way up, tab down. Inverted it
+looks tempting, because the microphone seat would then face the bed and come out
+flatter — but the root tab ends up floating 6.5 mm above the bed over a 28 × 20 mm
+area, and that is a support block you then have to dig out of PETG. Printed the
+right way up, the tab and the side walls sit flat on the bed.
+
+That leaves exactly one overhang: the ceiling of the cable channel, a 15 mm span.
+It is a **bridge, not a support** — the extruder pulls it between two walls, no
+material is deposited underneath, and the surface it produces is the inside of a
+cable trough where nobody cares. Use a brim; bed contact is only about 890 mm².
+
+If you would rather not bridge at all, `arm_lid.stl` + `arm_body.stl` are the same
+arm split along the channel ceiling — print both flat, glue together.
+
+![Arm split into lid and body for support-free printing](imgs/arm_split.jpg)
+
+The split plane is horizontal, running along the arm, and that is deliberate. A
+glue line has an uncontrolled thickness of a tenth of a millimetre or so; lying
+this way it adds that error to the arm's *height*, where nothing depends on it.
+Split across the arm instead and the same error would land straight on the
+86.6 mm radius, which is the one dimension the whole instrument is built around.
+
+The lid carries a locating tongue (0.3 mm clearance per side) that drops into the
+channel, so it cannot be glued crooked. Bond area is roughly 270 mm² — vastly more
+than the 0.005 mm-deflection loads need.
 
 Print all three arms together, from the same file and spool, so their errors stay
 common-mode.
