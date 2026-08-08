@@ -247,9 +247,9 @@ able to go back to the file it came from.
 
 155 g of PETG in total, plus the tube.
 
-For the two-part arm, swap `arm_v2_mic15.stl` for `arm_body_v2_mic15.stl` (12.4 g,
-82.6 × 20 × 12.5) plus `arm_lid_v2_mic15_slide.stl` (1.5 g, 34.2 × 14.6 × 2.5) —
-13.9 g per arm, 173 g for the build. Same geometry and the same 86.6 mm radius as
+For the two-part arm, swap `arm_v2_mic15.stl` for `arm_body_v2_mic15.stl` (12.3 g,
+82.6 × 20 × 12.5) plus `arm_lid_v2_mic15_slide.stl` (2.0 g, 34.2 × 14.6 × 3.5) —
+14.3 g per arm, 165 g for the build. Same geometry and the same 86.6 mm radius as
 the one-piece; take one or the other, never both.
 
 **Superseded — kept for reference, do not print:**
@@ -309,10 +309,20 @@ from the root end, until it stops against the tip block.
 
 | | |
 |---|---|
-| Lid flange | 14.6 mm wide × 1.55 mm |
-| Lid rib | 11.6 mm wide, flush with the top face |
+| Lid flange | 14.6 mm wide × 1.95 mm |
+| Lid rib | 11.6 mm wide × 1.55 mm, flush with the top face |
+| Retaining lip | 1.4 mm thick, projecting 1.5 mm |
+| Support shelf | 1.5 mm wide |
 | Clearance | 0.20 mm per side, 0.15 mm vertical |
 | Travel | 34.6 mm |
+
+The lip started at 0.8 mm — four layers — which is plenty for the load (the lid
+weighs 2 g) but thin enough to snap off while threading the lid in. The lid pocket
+was deepened from 2.5 to 3.5 mm to buy the thickness back; the cable channel loses
+1 mm of height and is still 12 × 9 mm.
+
+Print the lid **flange down**. The rib is the narrower of the two, so it sits on
+the wider flange and the part has no overhang at all.
 
 The flange rests on shelves inside the slot and the lips above it stop it lifting
 out, so it is captive in every direction but one. That last one is closed on
