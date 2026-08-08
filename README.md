@@ -136,8 +136,9 @@ means nothing.
 
 ![Arm tip: flush Ø13.4 recess, Ø12 clearance cavity below](imgs/arm_tip.jpg)
 
-The INMP441 breakout is a 13 mm round board, 1 mm thick. Two properties of it
-shape the tip:
+The INMP441 breakout is a **15 mm** round board, 1 mm thick. (The first printed
+iteration was built for 13 mm and the board would not go in — measure yours before
+printing three of them.) Two properties of it shape the tip:
 
 - The acoustic port is **central**. The MEMS die is bottom-ported and the PCB is
   drilled through beneath it, so the hole sits on the board's axis. Board rotation
@@ -146,16 +147,26 @@ shape the tip:
   mounted chip-down, bare face to the sky, or the port is sealed. Do not fit the
   supplied headers; solder wires directly to the pads from the chip side.
 
-The tip has a Ø13.4 × 1.0 mm recess so the board sits flush with the arm's top
+The tip has a Ø15.6 × 1.0 mm recess so the board sits flush with the arm's top
 face — flush, not sunk, because a cavity above the port is a Helmholtz resonator
 and a resonator is a phase shift, which reads as a fake delay. The recess wall
 centres the board mechanically, which is where the 1 mm budget is actually spent.
+Clearance is a generous 0.3 mm per side; the resulting 0.3 mm of possible
+off-centre costs 0.06° of azimuth, so there is nothing to gain by making it tight.
 
-Below it is a Ø12 × 5 mm clearance cavity. It is that wide because the six pads
-are spread near the board's rim, at roughly R5–6.5 mm; a narrower cavity would
-have left the solder joints resting on the seat. The remaining ledge is 0.7 mm
-wide, at R6.0–6.7. A side slot carries the wires into the arm's channel and vents
-the cavity so it is not a sealed pressure chamber.
+Below it is a Ø14 × 5 mm clearance cavity, leaving a 0.8 mm ledge at R7.0–7.8.
+The six pads run close to the board's rim, so solder joints may still touch that
+ledge and hold one edge of the board a few tenths high. That is deliberate and
+harmless: in-plane position — the part that matters — is set by the recess wall,
+not by the ledge, and a 0.3 mm out-of-plane tilt costs about 0.05° for a source
+at 30° elevation. Trim the solder flush if you like; it changes almost nothing.
+
+Fitting the Ø15.6 recess is what drove the tip to Ø20 and, with it, the arm to a
+constant 20 mm width. At the old Ø16 tip there would have been 0.2 mm of wall left
+around the board.
+
+A side tunnel carries the wires into the arm's channel and vents the cavity so it
+is not a sealed pressure chamber.
 
 Rain is unresolved. The port faces up, which is right for a source overhead and
 wrong for weather. A hydrophobic PTFE membrane under the board is the standard
@@ -203,15 +214,35 @@ feet have Ø5 mm holes for ground pegs; outdoors, use them.
 
 ### Parts and hardware
 
+File names carry an iteration number and the dimension that defines it, so
+superseded versions can sit alongside current ones without being confused for
+them. Nothing is ever deleted — a printed part is evidence, and you want to be
+able to go back to the file it came from.
+
+**Build this:**
+
 | STL | Qty | Mass | Size (mm) |
 |---|---|---|---|
-| `arm.stl` | 3 | 11.3 g | 80.6 × 20 × 12.5 |
-| `hub_top.stl` | 1 | 26.4 g | 73.5 × 84.9 × 8 |
-| `hub_bottom.stl` | 1 | 26.2 g | 73.5 × 84.9 × 8 |
-| `tube_collar_top.stl` | 1 | 26.9 g | 54.5 × 52 × 31 |
-| `tube_foot.stl` | 1 | 52.2 g | 176 × 203 × 32 |
+| `arm_v2_mic15.stl` | 3 | 11.1 g | 82.6 × 20 × 12.5 |
+| `hub_top_v1.stl` | 1 | 26.4 g | 73.5 × 84.9 × 8 |
+| `hub_bottom_v1.stl` | 1 | 26.2 g | 73.5 × 84.9 × 8 |
+| `tube_collar_top_v1_tube25.stl` | 1 | 26.9 g | 54.5 × 52 × 31 |
+| `tube_foot_v1_tube25.stl` | 1 | 52.2 g | 176 × 203 × 32 |
 
-166 g of PETG in total, plus the tube.
+165 g of PETG in total, plus the tube.
+
+For the two-part arm, swap `arm_v2_mic15.stl` for `arm_body_v2_mic15.stl` (12.4 g,
+82.6 × 20 × 12.5) plus `arm_lid_v2_mic15_slide.stl` (1.5 g, 34.2 × 14.6 × 2.5) —
+13.9 g per arm, 173 g for the build. Same geometry and the same 86.6 mm radius as
+the one-piece; take one or the other, never both.
+
+**Superseded — kept for reference, do not print:**
+
+| STL | Why it was replaced |
+|---|---|
+| `arm_v1_mic13.stl` | seat built for a Ø13 board; the real board is Ø15 |
+| `arm_body_v1_mic13.stl` | same, and its lid needed glue |
+| `arm_lid_v1_mic13_glued.stl` | superseded by the slide-in lid |
 
 - 6 × M3×16 + 6 nuts — arms to hub
 - 3 × M4×12 + 3 nuts — hub to tube clamp
@@ -241,27 +272,43 @@ deposited underneath, and none of these surfaces is one anybody sees or measures
 
 | Ceiling | Span | Where |
 |---|---|---|
-| Cable channel | 15 → 11 mm | full length of the arm |
+| Cable channel | 15 mm | full length of the arm |
 | Cable tunnel | 5 mm | between cavity and channel |
 | Tab cable groove | 5 mm | under the root tab |
 
 PETG bridges these fine with the part cooling fan on. Use a brim — bed contact is
-only about 890 mm², because the beam touches the plate on two 2.5 mm walls.
+only about 950 mm², because the beam touches the plate on two 2.5 mm walls.
 
-If you would rather not bridge at all, `arm_lid.stl` + `arm_body.stl` are the same
-arm split along the channel ceiling — print both flat, glue together.
+The two-part arm has only the last two: without a lid over it, the body's cable
+channel has no ceiling at all.
 
-![Arm split into lid and body for support-free printing](imgs/arm_split.jpg)
+If you would rather not bridge at all, `arm_body_v2_mic15.stl` +
+`arm_lid_v2_mic15_slide.stl` are the same arm as two parts. **No glue and no
+fasteners** — the lid is a T-bar that slides into a matching T-slot in the body,
+from the root end, until it stops against the tip block.
 
-The split plane is horizontal, running along the arm, and that is deliberate. A
-glue line has an uncontrolled thickness of a tenth of a millimetre or so; lying
-this way it adds that error to the arm's *height*, where nothing depends on it.
-Split across the arm instead and the same error would land straight on the
-86.6 mm radius, which is the one dimension the whole instrument is built around.
+![Arm as body and slide-in lid](imgs/arm_split.jpg)
 
-The lid carries a locating tongue (0.3 mm clearance per side) that drops into the
-channel, so it cannot be glued crooked. Bond area is roughly 270 mm² — vastly more
-than the 0.005 mm-deflection loads need.
+| | |
+|---|---|
+| Lid flange | 14.6 mm wide × 1.55 mm |
+| Lid rib | 11.6 mm wide, flush with the top face |
+| Clearance | 0.20 mm per side, 0.15 mm vertical |
+| Travel | 34.6 mm |
+
+The flange rests on shelves inside the slot and the lips above it stop it lifting
+out, so it is captive in every direction but one. That last one is closed on
+assembly: the hub's top plate overlaps the lid's end face, so once the arm is
+bolted down the lid cannot come back out.
+
+This is why the split had to move. A lid that slides in sideways cannot contain
+the Ø20 tip — it would not fit through its own slot — so the tip, with the
+microphone seat, now belongs to the body. That turns out better anyway: with no
+lid over it, the body's cable channel has **no ceiling to bridge at all**, and the
+lid becomes a 1.5 g strip that prints in minutes.
+
+It also means the wiring is reworkable. Slide the lid out, change a wire, slide it
+back — no glue to cut.
 
 Print all three arms together, from the same file and spool, so their errors stay
 common-mode.
