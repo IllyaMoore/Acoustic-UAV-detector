@@ -353,6 +353,70 @@ Windscreens are not designed in yet. The tip is a Ø16 rounded boss, so a foam
 ball with a matching bore pushes straight on; a retaining feature can be added
 once the actual foam is in hand.
 
+## The electronics box
+
+![System: array on its tripod, electronics box standing beside it](imgs/system_overview.jpg)
+
+A separate box that stands on the ground next to the tripod, holding the ESP32 and
+the SD module. It carries no part of the array, so nothing in it affects geometry
+or accuracy — which is exactly why it is separate.
+
+![Base and lid](imgs/case_exploded.jpg)
+
+### Why it does not fit the boards tightly
+
+Neither board has a dimension you can trust. The ESP32 DevKit V1 is
+[documented at 51.8 × 28.2 mm](https://mischianti.org/doit-esp32-dev-kit-v1-high-resolution-pinout-and-specs/)
+and measures 50 × 28 with calipers — a difference explained by whether the USB
+shell is included. The SD module is worse: the
+[shop lists 50 × 33 mm](https://arduino.ua/prod589-modyl-sd-card-dlya-arduino-spi),
+calipers say 46 × 29, and other sellers quote 41 × 24, 42 × 24 and 53 × 38 for
+boards under the same name. There is no datasheet. A 4 mm discrepancy on both
+sides is not rounding — it is a different board revision.
+
+So the box does not try to grip them. The floor is **flat, with no locating
+pockets**, and each board is held by two cable ties through slot pairs in the
+floor. That works at 46 × 29, at 50 × 33, and at anything between. It also means
+the boards can be moved, swapped or replaced with something else entirely without
+reprinting the box.
+
+The bays are sized for the largest plausible board: 53 × 29.5 mm for the ESP32 and
+52 × 35 mm for the SD module, with 8.5 mm between them for wiring.
+
+### Openings
+
+| Feature | Size | Where |
+|---|---|---|
+| USB window | 14 × 9.5 mm | short wall, on the ESP32 bay |
+| SD card window | 27 × 7.5 mm | short wall, on the SD bay |
+| Cable entry | Ø12 mm | opposite wall, between the bays |
+
+The windows are deliberately much bigger than the connectors, because the boards'
+positions are set by where you tie them down, not by the box. Both start 0.5 mm
+above the board surface and leave 12–14 mm of solid wall above, so the wall is not
+cut into pillars. Two cable-tie slots beside the cable entry take the strain off
+the joints inside.
+
+The seven conductors from the array (VDD, GND, SCK, WS and three SD lines) come in
+through the Ø12 entry. Nothing is weatherproof yet — that belongs with the IP
+enclosure, and these windows will need covers.
+
+### Parts
+
+| STL | Mass | Size (mm) |
+|---|---|---|
+| `case_base_v1_63x95.stl` | 46.9 g | 63 × 95 × 25 |
+| `case_lid_v1_63x95.stl` | 22.1 g | 63 × 95 × 5 |
+
+69 g of PETG, plus 4 × M3×30 with nuts — the nuts sit in 3.2 mm hex pockets in the
+underside of the four bosses, so a 2.4 mm M3 nut ends up flush and the box stands
+flat. Screw heads countersink into the lid.
+
+Both parts print without support. The base goes floor-down, open side up; the only
+overhangs are the two window ceilings, which bridge 14 and 27 mm. The lid prints
+**top face down**, so its locating lip points up and the visible face is the one
+that came off the plate.
+
 ## Components
 
 ### Microcontroller
