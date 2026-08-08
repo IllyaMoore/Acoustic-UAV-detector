@@ -374,27 +374,54 @@ calipers say 46 × 29, and other sellers quote 41 × 24, 42 × 24 and 53 × 38 f
 boards under the same name. There is no datasheet. A 4 mm discrepancy on both
 sides is not rounding — it is a different board revision.
 
-So the box does not try to grip them. The floor is **flat, with no locating
-pockets**, and each board is held by two cable ties through slot pairs in the
-floor. That works at 46 × 29, at 50 × 33, and at anything between. It also means
-the boards can be moved, swapped or replaced with something else entirely without
-reprinting the box.
+So the mounting is adjustable rather than fitted. The bays are sized for the
+largest plausible board — 53 × 29.5 mm for the ESP32 and 52 × 35 mm for the SD
+module — and each board is held the same way at any size between 46 × 29 and
+50 × 33. Boards can be moved, swapped, or replaced with something else entirely
+without reprinting the box.
 
-The bays are sized for the largest plausible board: 53 × 29.5 mm for the ESP32 and
-52 × 35 mm for the SD module, with 8.5 mm between them for wiring.
+### How the boards are held
+
+Two constraints shape this, and both come from the ESP32.
+
+Its pin headers are soldered on the underside, and the tails stand about 3 mm
+proud. **The board cannot rest on the floor.** And the pin rows run along both
+long edges, so **it cannot be supported at its edges either** — anything under the
+edge fouls the pins.
+
+What is left is the middle. Each board sits on **four Ø9 pads, 4 mm tall**, well
+inboard of the pin rows, putting the PCB underside at 9 mm and its top face at
+10.6 mm. The pin tails hang free with 1 mm to spare above the floor.
+
+Retention is then purely from above, on the board's edges:
+
+| | |
+|---|---|
+| Outer edge | fixed lip moulded into the wall, reaching 2.5 mm over the board |
+| Inner edge | `case_clamp_v2.stl` on a T-slot, one M3 |
+| Clamp travel | 12 mm — covers every quoted board width |
+| Board thickness assumed | 1.6 mm |
+
+Slide the board under the fixed lip, push the clamp against the free edge,
+tighten. The clamp carries a 3.4 mm key rib that rides inside the slot, so one
+screw is enough — it cannot rotate. Its nut lives in a channel milled into the
+underside of the floor and slides in from the outside edge, which is why the floor
+is 5 mm rather than 3.
+
+Cable-tie slots are still in the floor beside each bay, for tying down wiring
+looms or anything the clamps do not suit.
 
 ### Openings
 
 | Feature | Size | Where |
 |---|---|---|
-| USB window | 14 × 9.5 mm | short wall, on the ESP32 bay |
-| SD card window | 27 × 7.5 mm | short wall, on the SD bay |
+| USB-C window | 14 × 10 mm | short wall, on the ESP32 bay |
+| SD card window | 27 × 10 mm | short wall, on the SD bay |
 | Cable entry | Ø12 mm | opposite wall, between the bays |
 
 The windows are deliberately much bigger than the connectors, because the boards'
-positions are set by where you tie them down, not by the box. Both start 0.5 mm
-above the board surface and leave 12–14 mm of solid wall above, so the wall is not
-cut into pillars. Two cable-tie slots beside the cable entry take the strain off
+positions are set by where you tie them down, not by the box. Both straddle the board's top face at
+10.6 mm and leave 9 mm of solid wall above, so the wall is not cut into pillars. Two cable-tie slots beside the cable entry take the strain off
 the joints inside.
 
 The seven conductors from the array (VDD, GND, SCK, WS and three SD lines) come in
@@ -403,19 +430,27 @@ enclosure, and these windows will need covers.
 
 ### Parts
 
-| STL | Mass | Size (mm) |
-|---|---|---|
-| `case_base_v1_63x95.stl` | 46.9 g | 63 × 95 × 25 |
-| `case_lid_v1_63x95.stl` | 22.1 g | 63 × 95 × 5 |
+| STL | Qty | Mass | Size (mm) |
+|---|---|---|---|
+| `case_base_v2_63x108.stl` | 1 | 70.7 g | 63 × 108 × 27 |
+| `case_lid_v2_63x108.stl` | 1 | 25.3 g | 63 × 108 × 5 |
+| `case_clamp_v2.stl` | 2 | 2.5 g | 25 × 12 × 10 |
 
-69 g of PETG, plus 4 × M3×30 with nuts — the nuts sit in 3.2 mm hex pockets in the
-underside of the four bosses, so a 2.4 mm M3 nut ends up flush and the box stands
-flat. Screw heads countersink into the lid.
+101 g of PETG. Hardware:
 
-Both parts print without support. The base goes floor-down, open side up; the only
-overhangs are the two window ceilings, which bridge 14 and 27 mm. The lid prints
+- 4 × M3×30 + 4 nuts — lid to base. The nuts drop into 3.2 mm hex pockets in the
+  underside of the bosses, so a 2.4 mm M3 nut ends up flush and the box still
+  stands flat. Screw heads countersink into the lid.
+- 2 × M3×16 + 2 nuts — the board clamps, nuts captive in the floor's T-channels.
+
+Everything prints without support. The base goes floor-down, open side up; its
+only overhangs are the two window ceilings, bridging 14 and 27 mm. The lid prints
 **top face down**, so its locating lip points up and the visible face is the one
-that came off the plate.
+that came off the plate. The clamp prints **lip down** — the section only narrows
+going up, so there is no overhang at all.
+
+`case_base_v1_63x95.stl` and `case_lid_v1_63x95.stl` are superseded: they had no
+board mounting, and their floor was too thin to hold a captive nut.
 
 ## Components
 
