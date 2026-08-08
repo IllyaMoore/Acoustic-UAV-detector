@@ -134,7 +134,7 @@ means nothing.
 
 ### The microphone seat
 
-![Arm tip: flush Ø13.4 recess, Ø12 clearance cavity below](imgs/arm_tip.jpg)
+![Arm tip: flush Ø15.6 recess, Ø14 clearance cavity below](imgs/arm_tip.jpg)
 
 The INMP441 breakout is a **15 mm** round board, 1 mm thick. (The first printed
 iteration was built for 13 mm and the board would not go in — measure yours before
@@ -186,6 +186,12 @@ the centre, and drops through the Ø16 hole into the tube. It exits under the fo
 Five conductors per microphone (VDD, GND, SD, SCK, WS) fit the 10 mm² tunnel with
 room to spare. The tunnel also vents the microphone cavity, so it is not a sealed
 volume that pumps with temperature.
+
+The groove under the tab is 12 mm wide, not 5. The two M3 bolts run down the
+centreline of the tab and pass straight through that groove; at 5 mm the bolt
+shanks left 0.8 mm of clear width on either side, which is not a cable route. At
+12 mm the bundle passes either side of each bolt. The matching groove in the hub's
+lower plate was widened to match.
 
 The 5 mm of solid material between the channel and the cavity is deliberate — it
 is what carries the seat ledge. Running the channel all the way out to the cavity
@@ -239,17 +245,17 @@ able to go back to the file it came from.
 
 | STL | Qty | Mass | Size (mm) |
 |---|---|---|---|
-| `arm_v2_mic15.stl` | 3 | 11.1 g | 82.6 × 20 × 12.5 |
+| `arm_v2_mic15.stl` | 3 | 11.9 g | 82.6 × 20 × 12.5 |
 | `hub_top_v1.stl` | 1 | 26.4 g | 73.5 × 84.9 × 8 |
-| `hub_bottom_v1.stl` | 1 | 26.2 g | 73.5 × 84.9 × 8 |
-| `tube_collar_top_v2_tube25.stl` | 1 | 22.1 g | 52 × 52 × 31 |
+| `hub_bottom_v1.stl` | 1 | 25.8 g | 73.5 × 84.9 × 8 |
+| `tube_collar_top_v2_tube25.stl` | 1 | 22.4 g | 52 × 52 × 31 |
 | `tube_foot_v2_tube25.stl` | 1 | 47.4 g | 176 × 203 × 32 |
 
-155 g of PETG in total, plus the tube.
+158 g of PETG in total, plus the tube.
 
-For the two-part arm, swap `arm_v2_mic15.stl` for `arm_body_v2_mic15.stl` (12.3 g,
+For the two-part arm, swap `arm_v2_mic15.stl` for `arm_body_v2_mic15.stl` (11.6 g,
 82.6 × 20 × 12.5) plus `arm_lid_v2_mic15_slide.stl` (2.0 g, 34.2 × 14.6 × 3.5) —
-14.3 g per arm, 165 g for the build. Same geometry and the same 86.6 mm radius as
+13.6 g per arm, 163 g for the build. Same geometry and the same 86.6 mm radius as
 the one-piece; take one or the other, never both.
 
 **Superseded — kept for reference, do not print:**
