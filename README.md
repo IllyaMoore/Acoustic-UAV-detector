@@ -74,11 +74,16 @@ hanging under the hub, so the frame carries nothing but itself.
 
 ## The printed frame
 
-![The array assembled: three arms, sandwich hub, tube mast, tripod foot](imgs/array_assembly.jpg)
+![The head opened up: top plate lifted, arm lids drawn back, microphone boards in their seats](imgs/head_exploded.jpg)
 
 Three identical arms bolt into a two-plate hub; the hub bolts to a socket on a
-bought tube, which stands in a printed tripod foot. Everything is PETG, printed without
-supports. STL files are in [`hardware/`](hardware/).
+bought tube. Everything is PETG, printed without supports. STL files are in
+[`hardware/`](hardware/).
+
+The exploded view above shows the whole stack: the hub's top plate lifted off, the
+three slide-in arm lids drawn back, and under each of them the cable channel that
+runs out to the microphone. The three boards sit flush in their seats at the tips,
+acoustic ports facing the sky.
 
 ### What accuracy is actually needed
 
@@ -280,11 +285,11 @@ that was never revised keeps its `_v1` and that is not a mistake.
 | `arm_body_v4_mic15.stl` | 3 | 11.2 g | 82.6 × 20 × 12.5 |
 | `arm_lid_v2_mic15_slide.stl` | 3 | 2.0 g | 34.2 × 14.6 × 3.5 |
 | `hub_top_v1.stl` | 1 | 26.4 g | 73.5 × 84.9 × 8 |
-| `hub_bottom_v2.stl` | 1 | 26.2 g | 73.5 × 84.9 × 8 |
-| `tube_collar_top_v2_tube25.stl` | 1 | 22.4 g | 52 × 52 × 31 |
+| `hub_bottom_v3.stl` | 1 | 23.7 g | 73.4 × 84.6 × 8 |
+| `tube_collar_top_v3.stl` | 1 | 19.2 g | 45.9 × 53 × 31 |
 | `tube_foot_v2_tube25.stl` | 1 | 47.4 g | 176 × 203 × 32 |
 
-162 g of PETG in total, plus the tube.
+156 g of PETG in total, plus the tube.
 
 The two-part arm is the one to build. `arm_v4_mic15.stl` (11.5 g, same envelope)
 is the same arm in one piece, for anyone who would rather not have a sliding lid;
@@ -306,12 +311,21 @@ tracks the part, not the build.
 | `arm_v3_mic15.stl` | gabled the cable channel, which never needed it — see below |
 | `arm_body_v3_mic15.stl` | same |
 | `hub_bottom_v1.stl` | 12 mm cable tunnels, widened to match the arm groove that has since halved |
+| `hub_bottom_v2.stl` | carried its own M4 holes for the collar, which the arm bolts now do |
+| `tube_collar_top_v2_tube25.stl` | round Ø52 flange on 3 × M4 of its own; v3 shares the arm bolts |
 | `tube_collar_top_v1_tube25.stl` | pinch-clamp ears hang unsupported over the flange |
 | `tube_foot_v1_tube25.stl` | same |
 
-- 6 × M3×16 + 6 nuts — arms to hub
-- 3 × M4×12 + 3 nuts — hub to the top fitting
-- 2 × M4×40 + 2 nyloc nuts + 4 washers — through each fitting and the tube
+- 6 × M3×16 + 6 nuts — arms to hub, nuts captive in the lower plate
+- 3 × M3×7 — the top fitting, screwed **into the same three inner nuts** from below
+- 1 × M4×40 + nyloc nut + 2 washers — through the fitting and the tube
+
+The fitting has no fasteners of its own. Its three petals land on the arms' inner
+bolt circle at r 20, so the nuts that hold the arms hold the mast as well — the
+alternative was a second set of holes through the one plate the cable has to cross.
+Give those three inner nuts to the fitting and clamp each arm on its outer bolt
+only; the tab is 20.3 mm wide in a pocket that already stops it rotating, so the
+second bolt was never what held it straight.
 
 No heat-set inserts anywhere: every bolt lands in a hex nut pocket, which is
 both cheaper and stronger in PETG than an insert.
@@ -359,8 +373,8 @@ its STL is saved in. Nothing else in the build bridges more than 6 mm:
 | Part | Widest ceiling | What it is |
 |---|---|---|
 | `hub_top_v1` | **8.9 mm** | the engraved M1 arrow |
-| `hub_bottom_v2` | 6.0 mm | the cable tunnels |
-| `tube_collar_top_v2`, `tube_foot_v2` | under 1 mm | crowns of the horizontal bolt holes |
+| `hub_bottom_v3` | 6.0 mm | the cable tunnels |
+| `tube_collar_top_v3`, `tube_foot_v2` | under 1 mm | crowns of the horizontal bolt holes |
 | `case_base_v2`, `case_lid_v2` | 3.1 mm | board shelves and openings |
 | `arm_lid_v2`, `case_clamp_v2` | none | print with no overhang at all |
 
