@@ -40,6 +40,26 @@ as a slave and generates nothing.
 Only the data lines are separate: `SD_A` brings back microphones M1 and M2 as one
 stereo stream, `SD_B` brings back M3 on its own. The card sits on SPI at 3.3 V.
 
+On the DevKit V1 the pins are assigned like this — this is the map the bench
+build is actually wired to:
+
+| Signal | GPIO | Notes |
+|---|---|---|
+| SCK — shared bit clock | 26 | driven by I2S0, runs to all three microphones |
+| WS — shared word select | 25 | driven by I2S0, runs to all three microphones |
+| `SD_A` — M1 + M2 data | 33 | I2S0 data in |
+| `SD_B` — M3 data | 32 | I2S1 data in |
+| SCK return | 14 | I2S1 bit-clock input (slave), jumpered from the SCK bus |
+| WS return | 27 | I2S1 word-select input (slave), jumpered from the WS bus |
+| SD card — SCK / MISO / MOSI / CS | 18 / 19 / 23 / 5 | VSPI, module powered from 3.3 V |
+
+The L/R select pin is the only wire that differs between microphones:
+**M1 → GND** (left slot), **M2 → 3V3** (right slot), **M3 → GND** (left again —
+it is alone on its data line, so there is nothing to collide with). Every VDD
+goes to 3.3 V, no exceptions; a microphone left unpowered does not just stay
+silent, its protection diodes clamp the shared data line to ground and the
+whole line reads as zeros.
+
 The point of the single clock is that every microphone samples on the same clock
 edge, so the three streams cannot drift apart — which is exactly what would
 happen with two independent clocks. What can still differ is the instant each
@@ -554,7 +574,9 @@ Quantity: 1.
 ### Microphones
 
 INMP441 — a digital MEMS microphone with an I2S output, on a round breakout
-board (headers included, not yet soldered). A digital output means there is no
+board (headers soldered on for the breadboard stage; the arm's microphone
+pocket was deepened to 9.5 mm precisely so the board still seats with the pins
+on). A digital output means there is no
 analog signal on the run from microphone to board that stray pickup could
 corrupt — that is the main reason to choose this part over an analog capsule
 plus preamp.
@@ -598,13 +620,33 @@ Quantity: 1 (plus the card itself).
 
 ## Project status
 
-Components are in hand, the wiring and array layouts are drawn, and the array
-frame is fully modelled and exported for printing — nothing on the mechanical
-side is blocking now. Assembly has not started.
+The frame is printed and assembled, and the whole signal chain has had first
+light on the bench: all three microphones and the SD card, alive at the same
+time on one ESP32.
 
-Next step is bringing up capture on both I2S controllers and **proving** that the
-offset between the two data lines is a constant. This gates everything else:
-without confirmed synchronization, direction estimation is meaningless.
+![Bench bring-up: printed head assembled, three microphones wired through a breadboard to the ESP32 and SD module](imgs/bench_bringup.jpg)
+
+Bench bring-up (September 2026), done with throwaway MicroPython smoke tests
+over the pin map above:
+
+- **M1 + M2** verified as one stereo stream on `SD_A` — both channels carry
+  independent live audio, so the L/R slot mechanism works as designed.
+- **M3** verified on `SD_B`. (Its silence on the first attempt traced to an
+  unconnected VDD — see the wiring section for why that reads as a dead line,
+  not a noisy one.)
+- **SD card** mounts over SPI at 3.3 V, writes and reads back. A 4 GB card
+  holds ~1.75 h of raw 3-channel 48 kHz / 32-bit audio.
+
+One deliberate deviation from the target design, worth being honest about:
+MicroPython's I2S driver is master-only, so in these tests the second
+controller generated its own clock and M3's SCK/WS were fed from GPIO 14/27
+directly. That is fine for "is it alive", useless for TDOA — the streams are
+not sample-locked. Moving M3's clock lines onto the shared bus and configuring
+I2S1 as a slave needs ESP-IDF or Arduino firmware, and that is the next step.
+
+After that comes the real gate: **proving** that the offset between the two
+data lines is a constant. Without confirmed synchronization, direction
+estimation is meaningless.
 
 The test for it is simple. Put an impulse source — a clap, or a click from a small
 speaker — directly above the centroid, equally distant from all three microphones.
