@@ -13,8 +13,10 @@ constexpr int kWs = 25;
 constexpr int kSck = 26;
 constexpr int kSdA = 33;  // M1 (left) + M2 (right)
 constexpr int kSdB = 32;  // M3 (left), right slot empty
-constexpr int kSckIn = 27;  // external loopback: jumper to kSck
-constexpr int kWsIn = 14;   // external loopback: jumper to kWs
+// I2S1 slave clock inputs, jumpered from the shared bus. Matches the bench
+// wiring recorded in the README ("SCK return" / "WS return").
+constexpr int kSckIn = 14;  // external loopback: jumper from kSck
+constexpr int kWsIn = 27;   // external loopback: jumper from kWs
 constexpr int kSdSck = 18;
 constexpr int kSdMosi = 23;
 constexpr int kSdMiso = 19;

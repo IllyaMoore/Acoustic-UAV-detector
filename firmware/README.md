@@ -78,8 +78,13 @@ Pins follow CLAUDE.md. In external-loopback mode, add two jumpers:
 
 | | WROOM-32 | ESP32-S3 |
 | --- | --- | --- |
-| SCK → I2S1 BCK in | GPIO26 → GPIO27 | GPIO16 → GPIO4 |
-| WS → I2S1 WS in | GPIO25 → GPIO14 | GPIO15 → GPIO5 |
+| SCK → I2S1 BCK in | GPIO26 → GPIO14 | GPIO16 → GPIO4 |
+| WS → I2S1 WS in | GPIO25 → GPIO27 | GPIO15 → GPIO5 |
+
+These are the bench's "SCK return" / "WS return" pins. In the MicroPython
+smoke test, GPIO14/27 *drove* M3's clock from a second master. With this
+firmware they are inputs, so M3's SCK/WS must move onto the shared bus
+(GPIO26/25) first, or M3 gets no clock at all.
 
 ## Output
 
