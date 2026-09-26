@@ -1,0 +1,89 @@
+menu "Acoustic UAV detector"
+
+    config UAV_NODE_ID
+        int "Node ID"
+        range 0 999
+        default 1
+        help
+            Carried in every report sentence so a fusion host can tell nodes apart.
+
+    config UAV_ARRAY_HEADING_DEG
+        int "True heading of the M1 arm (degrees)"
+        range 0 359
+        default 0
+        help
+            Measured when the array is sited: the compass bearing, from true
+            north, of the line from the centroid to M1. Reports carry both the
+            array-relative azimuth and azimuth + this heading. Without it a
+            bearing is meaningless.
+
+    config UAV_M3_LAG_SAMPLES
+        int "FIFO offset: samples M3 (SD_B) lags M1/M2 (SD_A)"
+        range -64 64
+        default 0
+        help
+            Output of the click test (analysis/scripts/click_test.py). Removed
+            by delaying the early stream before any DSP. Leave 0 until measured.
+
+    choice UAV_CLOCK_LOOPBACK
+        prompt "How SCK/WS reach the I2S1 slave"
+        default UAV_CLOCK_LOOPBACK_EXTERNAL
+
+        config UAV_CLOCK_LOOPBACK_EXTERNAL
+            bool "External jumper to separate input pins"
+            help
+                I2S0 drives SCK/WS on its pins; I2S1 reads them back on two
+                other pins that you jumper to the first pair. Visible on a
+                scope - recommended for bring-up.
+
+        config UAV_CLOCK_LOOPBACK_INTERNAL
+            bool "Internal, through the GPIO matrix"
+            help
+                I2S1 is attached as an input to the very pins I2S0 drives.
+                Saves two pins and two wires. The slave is configured first so
+                the master's output setup does not undo its input routing.
+    endchoice
+
+    config UAV_SWAP_SD_A_SLOTS
+        bool "Swap left/right slots of SD_A (M1 <-> M2)"
+        default n
+        help
+            Enable if tapping M1 shows up on the M2 channel. Some ESP32
+            I2S modes deliver the right slot first in the DMA buffer.
+
+    config UAV_RECORD_WAV
+        bool "Record raw 3-channel WAV to microSD"
+        default y
+
+    config UAV_WAV_FILE_SECONDS
+        int "Seconds per WAV file"
+        depends on UAV_RECORD_WAV
+        range 10 3600
+        default 60
+        help
+            Files are finalised and a new one started this often, so a power
+            cut loses at most one file's header (doa_cli copes with that too).
+
+    config UAV_WAV_GAIN_BITS
+        int "Digital gain before truncating to 16 bits (bits, 6 dB each)"
+        depends on UAV_RECORD_WAV
+        range 0 8
+        default 2
+        help
+            INMP441 delivers 24 significant bits. The card gets 16: the top 16
+            shifted up by this many bits, with saturation.
+
+    config UAV_CALIBRATION_MODE
+        bool "Click-test mode"
+        default n
+        help
+            Widens the band to 500-8000 Hz, does NOT apply UAV_M3_LAG_SAMPLES,
+            and prints $UAVCAL sentences with the raw per-pair lags. Put a
+            click source above the centroid and read the M3 offset directly.
+
+    config UAV_STATUS_LED_GPIO
+        int "Status LED GPIO (-1 = none)"
+        default 2 if IDF_TARGET_ESP32
+        default -1
+
+endmenu

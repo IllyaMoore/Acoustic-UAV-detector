@@ -1,0 +1,11 @@
+# Applied on top of the IDF defaults the first time sdkconfig is generated.
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_FREERTOS_HZ=1000
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+# Long file names on the card (rec_000123.wav, detections.csv).
+CONFIG_FATFS_LFN_HEAP=y
+# FATFS: bigger write-back so 6 kB chunks do not turn into many small SPI writes.
+CONFIG_FATFS_PER_FILE_CACHE=y
+# The node emits nothing over the air: keep radios out of the image.
+CONFIG_BT_ENABLED=n
