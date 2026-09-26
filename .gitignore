@@ -1,1 +1,17 @@
 /CLAUDE.md
+
+# firmware build output (PlatformIO / ESP-IDF); sdkconfig.defaults is tracked
+firmware/.pio/
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.*
+!firmware/sdkconfig.defaults
+firmware/managed_components/
+firmware/dependencies.lock
+firmware/test/host/build/
+
+# python
+__pycache__/
+.pytest_cache/
+.venv/
+*.egg-info/
