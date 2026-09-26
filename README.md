@@ -17,7 +17,27 @@ operation.
 
 What it cannot do: range is modest (hundreds of meters, depending on background
 noise and drone type), wind and urban noise degrade accuracy, and a flat
-three-microphone array yields azimuth only — no elevation.
+three-microphone array yields azimuth, plus only a rough elevation that cannot
+tell above the horizon from below.
+
+**In this repository**
+
+- **Firmware** for the ESP32 / ESP32-S3 (ESP-IDF, C++17, FreeRTOS). Two I2S
+  controllers share one clock domain, GCC-PHAT runs on-device, bearings go
+  out as NMEA-style sentences, and raw audio is logged to microSD —
+  [`firmware/`](firmware/).
+- **The same DSP core, tested on the host.** There are about 700 unit checks,
+  plus a parity test that runs the C++ and the Python reference on the same
+  recording and requires agreement to 0.02 samples.
+- **A simulation and analysis workbench.** It covers drone and wind
+  synthesis, the clock-offset "click test" gate, and Monte Carlo accuracy
+  against the Cramér–Rao bound — [`analysis/`](analysis/).
+- **Networked use.** Bearing-only fusion across several nodes, and a bridge
+  that publishes the result as Cursor-on-Target for ATAK / WinTAK.
+- **The printed array frame**, fully modelled — [`hardware/`](hardware/).
+- **Research notes** on the field (Sky Fortress, Zvook, European vendors),
+  datasets, and why the stack is ESP-IDF rather than Arduino or Rust —
+  [`docs/RESEARCH.md`](docs/RESEARCH.md).
 
 ## The whole thing on one page
 
@@ -618,6 +638,95 @@ Quantity: 1 (plus the card itself).
 - Later: a weatherized (IP-rated) enclosure, and rain protection for the
   upward-facing microphone ports.
 
+## Software
+
+![Pipeline accuracy against the Cramér–Rao bound](docs/img/error_budget.png)
+
+### What a node does
+
+Every 21 ms the capture task pulls 1024 samples per microphone from the two I2S
+controllers and removes the constant FIFO offset between them. It hands the
+frame to the DSP task on the other core. That task windows and transforms each
+channel and keeps only the 200–4000 Hz bins, where propeller and engine
+harmonics live and most wind does not. It accumulates the three cross-spectra
+over twelve frames.
+
+Every 256 ms it whitens them (PHAT), finds the delay for each microphone pair,
+and solves for the bearing by least squares. Averaging *before* whitening is
+what buys robustness: a propeller harmonic adds up coherently frame after frame,
+while wind — turbulence local to each port, not a travelling wave — averages
+towards zero.
+
+A detection needs three things at once:
+
+- band energy above an adaptive noise floor;
+- a tonal (harmonic) spectrum;
+- coherence between the microphones.
+
+On top of that the three pair delays must close
+(τ₀₁ + τ₁₂ − τ₀₂ ≈ 0). That closure check is a free consistency test that
+catches a pair locked onto a reflection. The output is one line per block:
+
+```
+$UAVDOA,1,48213,1,62.4,152.4,18.7,0.83,11.2,0.71,1,151.9*38
+        node  time  det az_rel az_true el conf snr coh track track_az
+```
+
+Details, build instructions and a bring-up checklist are in
+[`firmware/README.md`](firmware/README.md).
+
+### How good it is, in simulation
+
+The plot above runs the real pipeline, one 256 ms block per trial, against a
+synthetic drone at random bearings. Above about 8 dB of in-band SNR the bearing
+is better than 1°. Above about 15 dB the timing error drops below what 1 mm of
+microphone position error costs (the dotted line), which is exactly the
+tolerance the frame was designed to. Wind as loud as the drone costs a quarter to a
+third more error, not a collapse.
+
+The pipeline sits 5–10× above the Cramér–Rao bound. Part of that gap is the
+bound's flat-spectrum assumption, which a harmonic source does not meet. Part
+is real: PHAT weights every bin equally, noise included, so an SNR-weighted
+GCC is the obvious next improvement.
+
+| Error source | Azimuth cost |
+| --- | --- |
+| 1 mm microphone position error | 0.38° |
+| 1 sample of timing (7.1 mm), no interpolation | 2.7° |
+| 0.1 sample, typical after sub-sample interpolation | 0.27° |
+| Speed of sound ±5 % (±15 °C) | ~0° (common scale, cancels); biases elevation |
+| Unknown M1 heading | 1 : 1 — measure it |
+
+### Several nodes: from bearings to positions
+
+![Bearing-only fusion of three nodes](docs/img/triangulation.png)
+
+One node gives a direction; two or more give a position where their bearings
+cross. That is how networked systems such as Sky Fortress turn cheap nodes into
+tracks. `analysis/uavdoa/fusion.py` does it as weighted least squares with a
+covariance, so every fix carries an honest error ellipse. The ellipse stretches
+wherever the nodes see the target from similar angles.
+
+`analysis/scripts/cot_bridge.py` reads `$UAVDOA` from one or more nodes. It
+publishes each node, with its bearing wedge, and each fused fix as
+Cursor-on-Target on ATAK's default multicast group, so the picture lands on
+a TAK map without custom software. A fix is typed "unknown air", not "hostile":
+the sensor reports a sound, and the operator decides what it is.
+
+### Repository layout
+
+```
+firmware/     ESP-IDF project: capture, DSP, SD logging, reports (+ host tests)
+analysis/     Python reference DSP, simulator, click test, CRLB, fusion, CoT bridge
+hardware/     STL files for the printed frame and electronics box
+docs/         research notes and generated figures
+imgs/         schematic and renders used in this README
+```
+
+CI (`.github/workflows/ci.yml`) runs the host C++ tests, the Python tests
+with the C++/Python parity check, the click-test gate on synthetic data, and
+firmware builds for both chips.
+
 ## Project status
 
 The frame is printed and assembled, and the whole signal chain has had first
@@ -642,14 +751,39 @@ MicroPython's I2S driver is master-only, so in these tests the second
 controller generated its own clock and M3's SCK/WS were fed from GPIO 14/27
 directly. That is fine for "is it alive", useless for TDOA — the streams are
 not sample-locked. Moving M3's clock lines onto the shared bus and configuring
-I2S1 as a slave needs ESP-IDF or Arduino firmware, and that is the next step.
+I2S1 as a slave needs proper firmware (Arduino's I2S library has no slave mode
+either, see [docs/RESEARCH.md](docs/RESEARCH.md#5-firmware-stack-the-decision)).
 
-After that comes the real gate: **proving** that the offset between the two
-data lines is a constant. Without confirmed synchronization, direction
-estimation is meaningless.
+The bench build and the smoke-test scripts on it are no longer accessible, so
+the firmware in this repository is a clean ESP-IDF implementation of the
+target design, written against the pin map above:
+
+- **Done:** firmware for both chips (builds cleanly), with I2S1 as a true
+  slave on the shared clock. Its DSP core is verified against a Python
+  reference and a simulator.
+- **Done:** the offline tools — click test, localisation, error budget.
+- **Done:** multi-node fusion and TAK output.
+- **Not yet done: running this firmware on the hardware.** Once the bench is
+  back, the steps are: move M3's SCK/WS onto the shared bus and keep the
+  14/27 return jumpers. Then comes the real gate: **proving** that the offset
+  between the two data lines is a constant. Without confirmed
+  synchronisation, direction estimation is meaningless.
 
 The test for it is simple. Put an impulse source — a clap, or a click from a small
 speaker — directly above the centroid, equally distant from all three microphones.
 The true time difference is then zero for every pair, so whatever delay the
-correlation reports is the buffer offset itself, and it can be measured, repeated
-across reboots, and watched for drift.
+correlation reports is the buffer offset itself. It can then be measured,
+repeated across reboots, and watched for drift. Firmware has a calibration mode
+for exactly this, and `analysis/scripts/click_test.py` turns a dozen recordings
+into a PASS/FAIL and the constant to configure.
+
+After that, roughly in order:
+
+- Characterise real targets and re-tune the detector on field recordings. No
+  public Shahed or FPV dataset exists, so this is fieldwork.
+- An SNR-weighted GCC, closing part of the gap to the bound.
+- A small on-node classifier (TFLite Micro / ESP-DL) in the detector's slot,
+  trained on public drone datasets plus our own recordings.
+- Time sync across nodes without GNSS, for fusing detections rather than only
+  bearings.
+- Windscreens and the weatherized enclosure.

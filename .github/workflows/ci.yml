@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  host-dsp:
+    name: DSP unit tests (host C++)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make -C firmware/test/host test
+
+  analysis:
+    name: Python reference + C++ parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: pytest
+        working-directory: analysis
+        run: uv run pytest -q
+      - name: click-test gate on synthetic reboots
+        working-directory: analysis
+        run: uv run python scripts/click_test.py --demo
+
+  firmware:
+    name: Firmware build (${{ matrix.env }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [esp32dev, esp32s3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ matrix.env }}-${{ hashFiles('firmware/platformio.ini') }}
+      - uses: astral-sh/setup-uv@v6
+      - run: uv tool install platformio
+      - working-directory: firmware
+        run: pio run -e ${{ matrix.env }}
