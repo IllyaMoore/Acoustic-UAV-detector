@@ -1,6 +1,6 @@
 """The sample-alignment gate: prove the SD_A -> SD_B offset is a constant.
 
-Setup (README, "Status"): a click source directly above the
+Setup (firmware/README.md, "Bring-up"): a click source directly above the
 centroid, so the true TDOA is zero for every pair. Record with the firmware
 (a dozen reboots -> a dozen rec_*.wav), then:
 

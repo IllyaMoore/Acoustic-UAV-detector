@@ -1,5 +1,5 @@
 // Pin map - one block per chip, selected at compile time by the IDF target.
-// The WROOM-32 map matches the wiring table in the README.
+// The WROOM-32 map matches the wiring table in hardware/README.md.
 #pragma once
 
 #include "sdkconfig.h"
