@@ -1,6 +1,6 @@
 # Hardware
 
-![The head opened up](../imgs/head_exploded.jpg)
+![Assembled head on the mast](../imgs/array_assembly.jpg)
 
 ## Wiring (ESP32 DevKit V1, as on the bench)
 
@@ -26,7 +26,11 @@ by a hard stop in the hub pocket, not by the bolts. The M1 arm is engraved on
 the hub. Print all three arms from one file and one spool so their errors are
 common-mode.
 
+![Head opened up: plates, arm lids, boards in their seats](../imgs/head_exploded.jpg)
+
 ![Arm tip](../imgs/mic_seated.jpg)
+
+![Arm body and slide-in lid](../imgs/arm_split.jpg)
 
 | STL | Qty |
 |---|---|
@@ -45,6 +49,8 @@ Fasteners:
 | 1 | M4×40 + nyloc | through the tube |
 | 4 | M3×30 + nuts | box lid |
 | 2 | M3×16 + nuts | board clamps |
+
+![Electronics box](../imgs/case_exploded.jpg)
 
 Printing: 0.2 mm layers, 4 perimeters, 30 % gyroid, no supports, STLs saved in
 print orientation. The widest bridges are the box's window lintels (14 and

@@ -1,5 +1,7 @@
 # Acoustic UAV Detector
 
+[![ci](https://github.com/IllyaMoore/Acoustic-UAV-detector/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/IllyaMoore/Acoustic-UAV-detector/actions/workflows/ci.yml)
+
 A passive acoustic drone detector: three MEMS microphones on a 150 mm triangle
 and an ESP32 that estimates the bearing to a drone from propeller noise
 (TDOA, GCC-PHAT), over 360°. Several nodes can be fused into a position and
@@ -21,6 +23,17 @@ and needs no transmit permit.
 - [`hardware/`](hardware/): the printed array frame and electronics box.
 - [`docs/RESEARCH.md`](docs/RESEARCH.md): existing systems (Sky Fortress,
   Zvook, European vendors), signatures, datasets, choice of stack.
+
+## Try it
+
+No hardware needed for the first three.
+
+```sh
+make -C firmware/test/host test                  # C++ DSP unit tests
+cd analysis && uv run pytest -q                  # Python reference + C++ parity
+uv run python scripts/cot_bridge.py --demo --dry-run   # 3 simulated nodes -> CoT, Ctrl-C to stop
+cd ../firmware && pio run -t upload              # flash an ESP32 DevKit
+```
 
 ## How it works
 
