@@ -1,6 +1,6 @@
 """Array geometry and the azimuth convention.
 
-Everything here mirrors CLAUDE.md / README and must stay in step with
+Everything here mirrors the README and must stay in step with
 firmware/components/dsp/include/array_geometry.hpp:
 
 * Equilateral triangle, side 150 mm, all capsules coplanar, facing up.

@@ -1,10 +1,7 @@
 // Minimal in-place radix-2 complex FFT, float.
 //
-// Portable on purpose: the same code runs on the ESP32 and in the host unit
-// tests, so a test that passes on the laptop is a test of the firmware maths.
-// esp-dsp's dsps_fft2r_fc32 is the obvious drop-in once the board is profiled
-// (it is ~1.5x faster with the Xtensa-optimised butterflies), but at the
-// frame rate this pipeline runs it is not the bottleneck - see firmware/README.
+// Portable so the host tests exercise the same code as the chip. esp-dsp's
+// dsps_fft2r_fc32 can replace it if profiling shows the FFT matters.
 #pragma once
 
 #include <complex>

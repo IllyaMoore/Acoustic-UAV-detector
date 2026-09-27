@@ -1,18 +1,13 @@
 """Synthetic array recordings.
 
-There is no hardware to record from right now, so every stage downstream is
-developed and tested against this simulator first. It is deliberately simple
-but models the things that actually break TDOA outdoors:
+Simple on purpose, but it has what breaks TDOA outdoors:
 
-* a drone-like source: a blade-pass harmonic series with slow RPM wander,
-  plus broadband rotor/airflow noise;
-* exact fractional delays per microphone (applied in the frequency domain);
-* wind: strong, low-frequency, and UNCORRELATED between capsules - the
-  reason wind is the main TDOA killer is that it is local turbulence at each
-  port, not a propagating wave;
-* sensor self-noise (INMP441: 61 dB(A) SNR);
-* the constant integer FIFO offset between the SD_A (M1+M2) and SD_B (M3)
-  streams that the click test is supposed to measure.
+* a blade-pass harmonic series with slow RPM wander, plus broadband noise;
+* exact fractional delays per mic (applied in the frequency domain);
+* low-frequency wind, uncorrelated between capsules (it is turbulence at
+  each port, not a travelling wave);
+* white sensor noise at a given SNR relative to the drone;
+* the constant integer FIFO offset between SD_A (M1, M2) and SD_B (M3).
 """
 
 from __future__ import annotations

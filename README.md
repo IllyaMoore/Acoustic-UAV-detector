@@ -1,324 +1,155 @@
 # Acoustic UAV Detector
 
-A passive acoustic drone detector. Three digital MEMS microphones, placed at the
-vertices of an equilateral triangle, listen for propeller noise; the
-microcontroller measures how much earlier the sound reached each microphone
-(TDOA, via GCC-PHAT) and turns those differences into an azimuth — the bearing
-to the source over a full 360°.
+A passive acoustic drone detector. Three MEMS microphones on an equilateral
+triangle listen for propeller noise. An ESP32 measures the time differences of
+arrival between them (GCC-PHAT) and turns them into a bearing over 360°.
 
-The device emits nothing: it only listens. That means it works without GNSS and
-without radio — including where the RF spectrum is jammed — and needs no
-transmit permit.
+It only listens, so it works without GNSS or radio, including where RF is
+jammed, and needs no transmit permit. Limits: range is hundreds of metres at
+best, wind and urban noise hurt, and a flat three-mic array gives azimuth plus
+only a rough elevation that can't tell above the horizon from below.
 
-This is a learning prototype. First a breadboard build that records 3-channel
-audio to microSD for offline analysis, then real-time azimuth estimation on the
-device, and only after that a weatherized enclosure for outdoor battery
-operation.
+What's here:
 
-What it cannot do: range is modest (hundreds of meters, depending on background
-noise and drone type), wind and urban noise degrade accuracy, and a flat
-three-microphone array yields azimuth, plus only a rough elevation that cannot
-tell above the horizon from below.
+- [`firmware/`](firmware/): ESP-IDF (C++17, FreeRTOS) for ESP32 / ESP32-S3.
+  Dual-I2S capture on one clock, GCC-PHAT on the chip, bearings out over UART,
+  raw audio to microSD.
+- [`analysis/`](analysis/): Python reference of the same DSP, a simulator, the
+  clock-offset click test, accuracy vs the Cramér–Rao bound, multi-node fusion,
+  and a bridge to ATAK (Cursor-on-Target).
+- [`hardware/`](hardware/): STL files for the printed array frame and the
+  electronics box.
+- [`docs/RESEARCH.md`](docs/RESEARCH.md): notes on existing systems, datasets,
+  and why ESP-IDF rather than Arduino or Rust.
 
-**In this repository**
-
-- **Firmware** for the ESP32 / ESP32-S3 (ESP-IDF, C++17, FreeRTOS). Two I2S
-  controllers share one clock domain, GCC-PHAT runs on-device, bearings go
-  out as NMEA-style sentences, and raw audio is logged to microSD —
-  [`firmware/`](firmware/).
-- **The same DSP core, tested on the host.** There are about 700 unit checks,
-  plus a parity test that runs the C++ and the Python reference on the same
-  recording and requires agreement to 0.02 samples.
-- **A simulation and analysis workbench.** It covers drone and wind
-  synthesis, the clock-offset "click test" gate, and Monte Carlo accuracy
-  against the Cramér–Rao bound — [`analysis/`](analysis/).
-- **Networked use.** Bearing-only fusion across several nodes, and a bridge
-  that publishes the result as Cursor-on-Target for ATAK / WinTAK.
-- **The printed array frame**, fully modelled — [`hardware/`](hardware/).
-- **Research notes** on the field (Sky Fortress, Zvook, European vendors),
-  datasets, and why the stack is ESP-IDF rather than Arduino or Rust —
-  [`docs/RESEARCH.md`](docs/RESEARCH.md).
-
-## The whole thing on one page
+## Schematic
 
 ![System schematic: wiring, board sizes, head assembly, array geometry](imgs/schema.jpg)
 
-Everything the build needs is on this one sheet: the signal chain down the left,
-the board footprints and the head assembly across the top right, and the array
-geometry — triangle and edge-on view — along the bottom right. The sections below
-just read it out in words.
+The hand-drawn sheet has the signal chain, board footprints, the head assembly
+and the array geometry. A few things on it are out of date: M3 is labelled
+`SD_A` but sits on `SD_B`, the MCU is drawn as an ESP32-S3 while the bench uses
+an ESP32 DevKit V1 (WROOM-32), and the electronics box is drawn under the hub
+but ended up as a separate box next to the tripod.
 
-## How it is wired
+## Wiring
 
-An I2S bus carries two channels, so three microphones need both of the chip's I2S
-controllers. The important part of the design is that only **one** of them
-generates the clock. The clock pair — SCK (bit clock) and WS (which channel is on
-the wire) — leaves the first controller, runs as a shared bus to all three
-microphones, and also feeds back into the second controller, which is configured
-as a slave and generates nothing.
+One I2S bus carries two channels, so three mics need both of the chip's I2S
+controllers. Only I2S0 generates the clock. SCK and WS go to all three mics and
+back into I2S1, which runs as a slave. `SD_A` carries M1 + M2 as one stereo
+stream, `SD_B` carries M3.
 
-Only the data lines are separate: `SD_A` brings back microphones M1 and M2 as one
-stereo stream, `SD_B` brings back M3 on its own. The card sits on SPI at 3.3 V.
-
-On the DevKit V1 the pins are assigned like this — this is the map the bench
-build is actually wired to:
+Pins on the DevKit V1, as wired on the bench:
 
 | Signal | GPIO | Notes |
 |---|---|---|
-| SCK — shared bit clock | 26 | driven by I2S0, runs to all three microphones |
-| WS — shared word select | 25 | driven by I2S0, runs to all three microphones |
-| `SD_A` — M1 + M2 data | 33 | I2S0 data in |
-| `SD_B` — M3 data | 32 | I2S1 data in |
-| SCK return | 14 | I2S1 bit-clock input (slave), jumpered from the SCK bus |
-| WS return | 27 | I2S1 word-select input (slave), jumpered from the WS bus |
-| SD card — SCK / MISO / MOSI / CS | 18 / 19 / 23 / 5 | VSPI, module powered from 3.3 V |
+| SCK | 26 | I2S0 out, to all mics |
+| WS | 25 | I2S0 out, to all mics |
+| `SD_A` (M1 + M2) | 33 | I2S0 data in |
+| `SD_B` (M3) | 32 | I2S1 data in |
+| SCK return | 14 | I2S1 clock in, jumpered from SCK |
+| WS return | 27 | I2S1 WS in, jumpered from WS |
+| SD card SCK / MISO / MOSI / CS | 18 / 19 / 23 / 5 | VSPI, 3.3 V |
 
-The L/R select pin is the only wire that differs between microphones:
-**M1 → GND** (left slot), **M2 → 3V3** (right slot), **M3 → GND** (left again —
-it is alone on its data line, so there is nothing to collide with). Every VDD
-goes to 3.3 V, no exceptions; a microphone left unpowered does not just stay
-silent, its protection diodes clamp the shared data line to ground and the
-whole line reads as zeros.
+L/R straps: M1 to GND (left), M2 to 3V3 (right), M3 to GND (alone on its line).
+Every VDD goes to 3.3 V. An unpowered INMP441 doesn't just go quiet: its
+protection diodes clamp the shared data line and the whole line reads zero.
 
-The point of the single clock is that every microphone samples on the same clock
-edge, so the three streams cannot drift apart — which is exactly what would
-happen with two independent clocks. What can still differ is the instant each
-receive buffer starts filling, and that appears as a fixed offset of a whole
-number of samples between the two data lines. A fixed offset is harmless: measure
-it once, subtract it forever. Proving that it really is fixed — the same after
-every reboot, stable over a long recording — is the first milestone of the build.
+With one clock, all mics sample on the same edge, so the streams can't drift.
+The two receive buffers can still start filling at slightly different moments,
+which gives a constant whole-sample offset between `SD_A` and `SD_B`. That's
+fine as long as it really is constant, so the first job on hardware is proving
+it (see [Status](#status)).
 
-## The array
+## Array and frame
 
-Three microphones on an equilateral triangle with 150 mm sides: M1 at the apex,
-M2 and M3 at the base, and the centroid marked in the middle. Each microphone is
-86.6 mm from the centre. Bearings are reported relative to M1, so whichever frame
-is built, the M1 corner has to be marked physically and its real-world heading
-noted when the array is set up — otherwise an azimuth means nothing.
-
-There are two ways to hold the microphones in that shape. One is a solid flat
-plate with the microphones at its corners: simple and rigid, but the plate is a
-reflecting surface directly under the capsules and it catches wind. The other is
-a three-armed frame. Both put the microphones in identical positions, so this is
-a construction choice, not a change to the algorithm.
-
-The three-armed frame won, and it is now designed and modelled — see
-[The printed frame](#the-printed-frame) below. All three capsules sit on one
-horizontal plane and everything solid hangs below them, out of the acoustic
-path; the frame also offers the wind far less to push against.
-
-The electronics live in a separate box that stands next to the array rather than
-hanging under the hub, so the frame carries nothing but itself.
+Equilateral triangle, 150 mm sides, M1 at the apex, M2 bottom-left, M3
+bottom-right, each 86.6 mm from the centre. Bearings are measured clockwise
+from M1, so the M1 arm is engraved on the hub and its real heading has to be
+noted when the array is set up.
 
 ![Plan view of the array: three arms at 120°, 150 mm between microphone ports](imgs/array_plan.jpg)
 
-## The printed frame
+I went with three arms on a hub rather than a flat plate: less surface under
+the capsules to reflect sound, less wind load, and everything solid sits below
+the microphone plane. PETG, no supports.
 
 ![The head opened up: top plate lifted, arm lids drawn back, microphone boards in their seats](imgs/head_exploded.jpg)
 
-Three identical arms bolt into a two-plate hub; the hub bolts to a socket on a
-bought tube. Everything is PETG, printed without supports. STL files are in
-[`hardware/`](hardware/).
+### Accuracy target
 
-The exploded view above shows the whole stack: the hub's top plate lifted off, the
-three slide-in arm lids drawn back, and under each of them the cable channel that
-runs out to the microphone. The three boards sit flush in their seats at the tips,
-acoustic ports facing the sky.
+A position error δ on one mic costs about δ / 150 mm of bearing, so 1 mm is
+0.38°. One sample at 48 kHz is 7.1 mm of sound travel, and sub-sample
+interpolation gets to roughly a tenth of that. So the frame is built to about
+1 mm; tighter would be lost in correlation noise.
 
-### What accuracy is actually needed
+Errors that are the same on all three channels (thermal expansion, a membrane
+over every port) cancel out. That's why the three arms come from one file,
+one batch, one spool, and are wired the same way.
 
-This is the number that drove every decision. For a baseline `b`, an error `δ` in
-a microphone's position produces a bearing error of roughly `δ / b`. With
-`b = 150 mm`, **1 mm of geometric error costs 0.38° of azimuth.**
+### Arms and joint
 
-That is worth comparing against what the timing side can resolve. One sample at
-48 kHz is 20.8 µs, which is 7.1 mm of sound travel; GCC-PHAT with sub-sample
-interpolation reaches roughly a tenth of that, so about 0.7 mm equivalent. So the
-target for the frame is **~1 mm** — tighter is wasted effort because it drowns in
-correlation noise, looser becomes the dominant error term.
+A 20 × 12.5 mm PETG channel cantilevered 86.6 mm deflects about 0.005 mm under
+a 20 m/s gust on a Ø40 windscreen, so stiffness isn't the issue. The error
+budget is in the joints and in how the board sits.
 
-A second, easier rule falls out of the same maths: errors that are *identical on
-all three channels* do not turn into bearing error at all. Thermal expansion of
-the arms (0.18 mm over 86.6 mm for a 30 °C swing) is common to all three and
-cancels. This is why the three arms are printed from one file, in one batch, and
-why the cable should be routed the same way on each arm even though M3 needs a
-different bundle.
+Each arm ends in a 20 × 6 × 28 mm tab clamped between two hub plates. The tab
+butts against the end of a 3 mm pocket, and that face sets the 86.6 mm radius,
+not the bolts. I tried a socket hub first, but three radial sockets can't all
+print upright, and the bridged surface would have ended up as the coplanarity
+datum.
 
-### Arms do not flex — joints slip
-
-The obvious worry with a three-armed frame is that thin arms bend, and bending is
-geometric error. Run the numbers for the leanest section the arm has ever had — a
-PETG channel 20 × 12.5 mm on 2.5 mm walls, cantilevered 86.6 mm — read the table
-as an upper bound:
-
-| Load | Tip deflection |
-|---|---|
-| Microphone + windscreen (5 g) | 0.001 mm |
-| The arm's own weight (12 g) | 0.001 mm |
-| 20 m/s wind on a Ø40 mm windscreen (0.15 N) | 0.005 mm |
-
-Two to three orders of magnitude below the 1 mm that matters. Beam stiffness is
-a non-issue at this scale; the whole error budget lives in the **joints** and in
-**how the microphone board is seated**. So the arms are kept light and the joints
-are over-built, not the other way round.
-
-### The joint
-
-Each arm ends in a flat tab, 20 × 6 × 28 mm, clamped between two hub plates. The
-tab drops into a 3 mm pocket milled into each plate (0.15 mm clearance per side);
-the inner end of the pocket is a hard face that the tab butts against, and *that*
-is what sets the 86.6 mm radius — not the bolt holes, which have clearance and
-would let the arm creep. Two M3 bolts per arm clamp through into hex nut pockets.
-
-A socket-and-tongue hub was tried first and dropped. Three sockets radiating at
-120° cannot all be vertical in any print orientation, so each would need a 16 mm
-bridged ceiling — and that rough bridged surface would have become the datum
-setting capsule coplanarity. Two flat plates print with no overhangs at all.
-
-The M1 heading is engraved into the top plate. Without a physical mark an azimuth
-means nothing.
-
-### The microphone seat
+### Microphone seat
 
 ![Arm tip: the board flush in its recess, acoustic port at the centre](imgs/mic_seated.jpg)
 
-The INMP441 breakout is a **15 mm** round board, 1 mm thick. (The first printed
-iteration was built for 13 mm and the board would not go in — measure yours before
-printing three of them.) Two properties of it shape the tip:
+The INMP441 breakout is a 15 mm round board (the first print was for 13 mm and
+didn't fit). The port is central and bottom-ported, so sound enters from the
+bare face and the board goes chip-down, bare face up. Rotation doesn't matter.
 
-- The acoustic port is **central**. The MEMS die is bottom-ported and the PCB is
-  drilled through beneath it, so the hole sits on the board's axis. Board rotation
-  therefore does not move the acoustic point — one less thing to control.
-- Sound enters from the **bare face**, opposite the chip. The board must be
-  mounted chip-down, bare face to the sky, or the port is sealed. Do not fit the
-  supplied headers; solder wires directly to the pads from the chip side.
+- Ø15.6 × 1.0 mm recess, board flush with the top face. A cavity above the port
+  would resonate and add phase, which reads as delay. The recess wall centres
+  the board; 0.3 mm of clearance costs about 0.1°.
+- Ø14 clearance cavity below, total pocket depth 9.5 mm. With headers fitted the
+  board plus pins is about 9 mm, and the extra 0.5 mm makes sure the board rests
+  on its ledge and not on its pin tips.
+- A side tunnel takes the wires into the arm channel and vents the cavity.
+- A Ø10 hole through the floor lets you push the board out with a rod, and
+  drains water.
 
-The tip has a Ø15.6 × 1.0 mm recess so the board sits flush with the arm's top
-face — flush, not sunk, because a cavity above the port is a Helmholtz resonator
-and a resonator is a phase shift, which reads as a fake delay. The recess wall
-centres the board mechanically, which is where the 1 mm budget is actually spent.
-Clearance is a generous 0.3 mm per side; the resulting 0.3 mm of possible
-off-centre costs 0.06° of azimuth, so there is nothing to gain by making it tight.
+The recess is what set the tip at Ø20 and the arm at 20 mm wide. Rain is still
+open; a PTFE membrane under the board would add the same phase on all three
+channels, so it's harmless.
 
-Below it is a Ø14 × 8.5 mm clearance cavity, leaving a 0.8 mm ledge at R7.0–7.8.
-The six pads run close to the board's rim, so solder joints may still touch that
-ledge and hold one edge of the board a few tenths high. That is deliberate and
-harmless: in-plane position — the part that matters — is set by the recess wall,
-not by the ledge, and a 0.3 mm out-of-plane tilt costs about 0.05° for a source
-at 30° elevation. Trim the solder flush if you like; it changes almost nothing.
-
-Recess plus cavity make the pocket **9.5 mm deep** — it was 6.0 mm until the board
-was fitted with pins, which take the board-plus-legs stack to about 9 mm. The half
-millimetre left over is not slack, it is the whole point: if the pocket were
-exactly 9 mm, whether the board landed on the ledge or on its own pin tips would be
-a coin toss, and landing on the pins would lift it off the seat and throw away the
-centring the recess exists to provide. The seat has to be the only thing the board
-touches.
-
-Fitting the Ø15.6 recess is what drove the tip to Ø20 and, with it, the arm to a
-constant 20 mm width. At the old Ø16 tip there would have been 0.2 mm of wall left
-around the board.
-
-A side tunnel carries the wires into the arm's channel and vents the cavity so it
-is not a sealed pressure chamber.
-
-Straight down through the cavity floor runs a **Ø10 hole to the underside of the
-arm**. Its job is to get a board back out: seated in a 0.3 mm recess and held by
-tape, a 15 mm disc is otherwise very hard to lift without levering against the
-0.8 mm ledge and breaking it. Push a rod up the hole instead and the board lifts
-straight out. It costs nothing structurally — 3 mm of solid tip still sits below
-the cavity, and the hole is R5 while the seat ledge is at R7.0–7.8, so they never
-meet — and it doubles as a drain for anything that finds its way into the cavity.
-
-Rain is unresolved. The port faces up, which is right for a source overhead and
-wrong for weather. A hydrophobic PTFE membrane under the board is the standard
-answer — it adds a phase shift, but an identical one on all three channels, so it
-is common-mode and harmless.
-
-### The cable route
+### Cable route
 
 ![Section through the arm: microphone cavity, cable tunnel, channel](imgs/arm_section.jpg)
 
-The cable never leaves the structure. From the pin tips under the board it drops to
-the floor of the Ø14 cavity, crosses a 5 × 2.75 mm tunnel that sits on that floor,
-runs the length of the arm inside the channel, passes under the tab through a
-groove that the hub pocket floor closes into a tunnel, follows a groove in the
-lower plate to the centre, and drops through the Ø16 hole into the tube. It exits
-under the foot.
+Five wires per mic (VDD, GND, SD, SCK, WS) go from the cavity through a
+5 × 2.75 mm tunnel, along the arm channel, under the tab through a 6 mm groove,
+along the lower hub plate and down the Ø16 hole into the tube. The M3 bolt
+passes through the middle of the tab groove, leaving 1.3 mm each side, so push
+the wires aside before tightening.
 
-Five conductors per microphone (VDD, GND, SD, SCK, WS) fit the 13.75 mm² tunnel
-with room to spare. The tunnel also vents the microphone cavity, so it is not a
-sealed volume that pumps with temperature. It sits on the cavity floor rather than
-part-way up the wall because that is where the pin tips end — anywhere higher and
-the wires would have to be led back up before they could leave.
+### Mast
 
-The groove under the tab is 6 mm wide and centred, which puts the two M3 bolts
-straight through the middle of it. That leaves 1.3 mm of clear width either side of
-each bolt shank — enough for thin wire split two and three, but it makes assembly
-order matter: **push the wires aside before tightening**, or the bolt will nip the
-insulation and you will not see it happen. Moving the bolts off the centreline
-would clear the path completely, at the cost of relocating the holes and nut
-pockets in both hub plates.
+A bought Ø25 mm tube (aluminium best, PVC cheapest) held by two printed
+sockets, each with one M4 through-bolt. Drill the tube using the socket as a
+jig. An aluminium tube is about 15× stiffer than a printed PETG one and
+doesn't cost a four-hour print. Inner diameter at least 18 mm for the cable.
+With a 300 mm tube the microphones sit 328 mm off the ground.
 
-The lower hub plate carries the cable the rest of the way. Where the tab ends, a
-tunnel runs on under the parting face from the tab pocket to the Ø16 bore in the
-centre — 6 mm wide, 2 mm tall, roofed over for its whole 6 mm length. It is the
-one closed passage in the hub, and it has to be the same width as the groove that
-feeds it: it was 12 mm to match the old groove, and halving one without the other
-would just have moved the bridge rather than shrunk it.
+The tripod is light (about 260 g total) and tips at roughly 10 m/s of wind, so
+use the ground pegs outdoors.
 
-The 5 mm of solid material between the channel and the cavity is deliberate — it
-is what carries the seat ledge. Running the channel all the way out to the cavity
-would leave the ledge, and therefore the microphone, cantilevered over a void.
+An earlier pinch-clamp socket is kept in `superseded/` but shouldn't be
+printed: its clamp ears overhang with nothing under them, and supporting them
+would weld the clamp shut.
 
-### The mast
+### Parts
 
-The mast is a **bought Ø25 mm tube**, held at each end by a printed socket. It is
-not printed, for two reasons. An aluminium tube of Ø25 × 1.5 mm has
-`EI ≈ 5.4·10⁸ N·mm²` against `3.5·10⁷` for a printed PETG mast of the same
-diameter — roughly **15× stiffer**. And a 200 mm printed tower is a four-hour
-single-column print that can fail at any point in it, whereas the two fittings are
-32 mm tall.
-
-Each fitting is a plain flanged socket: Ø25.4 bore, 26 mm deep, with a shoulder
-that stops the tube square, and one M4 bolt straight through both walls and the
-tube. Drill the tube using the printed part as the jig — slide it in, run a
-Ø4.5 mm bit through the moulded holes, bolt it up.
-
-Earlier versions used a pinch clamp so the tube would not have to be drilled.
-That design is kept as `*_v1_*` but should not be printed: its clamp ears hang
-7 mm above the flange with nothing under them, and the obvious fix defeats itself.
-Buttress an ear down to the flange and the clamp is welded shut — a pinch works
-only because its halves are free to move. Running the slot through the flange too
-would make the whole part a C, but then the three M4 bolts holding that flange to
-the hub would prise the clamp back open. A through-bolt removes the ears, the
-slot and the nut pockets in one move, and is stronger and more positive than the
-clamp ever was. It costs one drilled hole per joint, in a tube you are cutting to
-length anyway.
-
-Aluminium is the best choice, PVC conduit the cheapest, acrylic acceptable but
-brittle. Inner diameter must be at least 18 mm; the cable runs down inside the
-tube and exits under the foot.
-
-Tube length is free. With 300 mm, the acoustic plane sits 328 mm above ground.
-
-The tripod is deliberately light, and that has a cost worth knowing. The
-overturning lever arm of a tripod is not the foot radius but half of it, because
-it tips over the line joining two feet — about 53 mm here. Against a total mass
-near 260 g, wind starts to overturn the stand at roughly **10 m/s**. The three
-feet have Ø5 mm holes for ground pegs; outdoors, use them.
-
-### Parts and hardware
-
-`hardware/` holds only what you would print today. Everything that has been
-replaced lives in `hardware/superseded/`, so you cannot pick the wrong file by
-accident but nothing is lost either — a printed part is evidence, and you want to
-be able to go back to the file it came from.
-
-File names carry an iteration number and the dimension that defines it, so a part
-that was never revised keeps its `_v1` and that is not a mistake.
-
-**Build this:**
+`hardware/` holds what you'd print today; replaced parts are in
+`hardware/superseded/`. File names carry a version and the defining dimension.
 
 | STL | Qty | Mass | Size (mm) |
 |---|---|---|---|
@@ -329,231 +160,102 @@ that was never revised keeps its `_v1` and that is not a mistake.
 | `tube_collar_top_v3.stl` | 1 | 19.2 g | 45.9 × 53 × 31 |
 | `tube_foot_v2_tube25.stl` | 1 | 47.4 g | 176 × 203 × 32 |
 
-156 g of PETG in total, plus the tube.
+156 g of PETG plus the tube. `arm_v4_mic15.stl` is the same arm in one piece
+(no sliding lid, one extra bridge, can't be reopened); print one or the other.
 
-The two-part arm is the one to build. `arm_v4_mic15.stl` (11.5 g, same envelope)
-is the same arm in one piece, for anyone who would rather not have a sliding lid;
-it prints with one more bridge and cannot be re-opened to change a wire. Take one
-or the other, never both.
+Hardware:
 
-The lid has not changed since v2, so it keeps its v2 name — the version number
-tracks the part, not the build.
+- 3 × M3×16 + 6 nuts: arms to hub, one bolt per arm on the outer hole, nuts
+  captive in the lower plate
+- 3 × M3×7: the top mast fitting, screwed from below into the three inner nuts
+- 1 × M4×40 + nyloc + 2 washers: through the fitting and the tube
 
-**In `hardware/superseded/` — kept for reference, do not print:**
+The fitting sits on the arms' inner bolt circle (r 20) and uses their nuts, so
+the plate the cable crosses has no second set of holes. One bolt per arm is
+enough because the tab pocket already stops it rotating.
 
-| STL | Why it was replaced |
+| Superseded | Why |
 |---|---|
-| `arm_v1_mic13.stl` | seat built for a Ø13 board; the real board is Ø15 |
-| `arm_body_v1_mic13.stl` | same, and its lid needed glue |
-| `arm_lid_v1_mic13_glued.stl` | superseded by the slide-in lid |
-| `arm_v2_mic15.stl` | 6 mm microphone pocket — too shallow once the board had pins |
-| `arm_body_v2_mic15.stl` | same |
-| `arm_v3_mic15.stl` | gabled the cable channel, which never needed it — see below |
-| `arm_body_v3_mic15.stl` | same |
-| `hub_bottom_v1.stl` | 12 mm cable tunnels, widened to match the arm groove that has since halved |
-| `hub_bottom_v2.stl` | carried its own M4 holes for the collar, which the arm bolts now do |
-| `tube_collar_top_v2_tube25.stl` | round Ø52 flange on 3 × M4 of its own; v3 shares the arm bolts |
-| `tube_collar_top_v1_tube25.stl` | pinch-clamp ears hang unsupported over the flange |
-| `tube_foot_v1_tube25.stl` | same |
-
-- 6 × M3×16 + 6 nuts — arms to hub, nuts captive in the lower plate
-- 3 × M3×7 — the top fitting, screwed **into the same three inner nuts** from below
-- 1 × M4×40 + nyloc nut + 2 washers — through the fitting and the tube
-
-The fitting has no fasteners of its own. Its three petals land on the arms' inner
-bolt circle at r 20, so the nuts that hold the arms hold the mast as well — the
-alternative was a second set of holes through the one plate the cable has to cross.
-Give those three inner nuts to the fitting and clamp each arm on its outer bolt
-only; the tab is 20.3 mm wide in a pocket that already stops it rotating, so the
-second bolt was never what held it straight.
-
-No heat-set inserts anywhere: every bolt lands in a hex nut pocket, which is
-both cheaper and stronger in PETG than an insert.
+| `arm_v1_mic13`, `arm_body_v1_mic13`, `arm_lid_v1_mic13_glued` | built for a 13 mm board; glued lid |
+| `arm_v2_mic15`, `arm_body_v2_mic15` | 6 mm pocket, too shallow with pins |
+| `arm_v3_mic15`, `arm_body_v3_mic15` | gabled channel ceiling the split arm doesn't need (+2.6 g) |
+| `hub_bottom_v1` | 12 mm cable tunnels |
+| `hub_bottom_v2`, `tube_collar_top_v2_tube25` | separate M4 holes for the collar |
+| `tube_collar_top_v1_tube25`, `tube_foot_v1_tube25` | pinch clamp with unsupported ears |
 
 ### Printing
 
-PETG, chosen over PLA for outdoor service — PLA softens near 60 °C, which a dark
-part in the sun will reach, and its creep under sustained load is exactly the
-slow geometric drift this instrument cannot tolerate.
+PETG rather than PLA: PLA softens near 60 °C in the sun and creeps under load,
+and creep is geometric drift. 0.2 mm layers, 4 perimeters, 30 % gyroid. Every
+STL is saved in print orientation and none needs supports.
 
-0.2 mm layers, 4 perimeters, 30 % gyroid infill. Every STL is saved in its print
-orientation — drop it on the bed as-is, and **no part needs support material.**
-
-The arm is the one that has to be printed the right way up, tab down. Inverted it
-looks tempting, because the microphone seat would then face the bed and come out
-flatter — but the root tab ends up floating 6.5 mm above the bed over a 28 × 20 mm
-area, and that is a support block you then have to dig out of PETG. Printed the
-right way up, the tab and the side walls sit flat on the bed.
+Print the arm tab-down. Upside down the seat comes out flatter, but the tab then
+floats 6.5 mm above the bed and needs a support block.
 
 ![Arm cross-section: the channel, with the lid seated in its slot](imgs/arm_channel.jpg)
 
-The two-part arm has exactly two internal ceilings, and both are genuine bridges —
-the extruder pulls the filament between two walls, nothing is deposited underneath,
-and neither surface is one anybody sees or measures:
+Widest unsupported spans, measured from the STLs:
 
-| Ceiling | Span | Area | Where |
-|---|---|---|---|
-| Tab cable groove | 6 mm | 138 mm² | under the root tab |
-| Cable tunnel | 5 mm | 26 mm² | between cavity and channel |
-| Lid undercut | 1.5 mm | 104 mm² | the ledge the lid flange slides under |
-
-The cable channel itself is not on that list: with the lid off it has no ceiling at
-all, and the lid closes it after printing. The one-piece arm adds a third bridge,
-the channel ceiling, 15 mm wide and 32.6 mm long.
-
-The tab groove was 12 mm and is now 6, which halves that bridge. It could not
-simply be narrowed and left where it was — see [the cable route](#the-cable-route)
-for the bolts that run through it.
-
-PETG bridges all of these fine with the part cooling fan on; use a brim anyway.
-
-Every printed part has been swept for downward-facing surfaces in the orientation
-its STL is saved in. Nothing else in the build bridges more than 6 mm:
-
-| Part | Widest ceiling | What it is |
+| Part | Span | What |
 |---|---|---|
-| `hub_top_v1` | **8.9 mm** | the engraved M1 arrow |
-| `hub_bottom_v3` | 6.0 mm | the cable tunnels |
-| `tube_collar_top_v3`, `tube_foot_v2` | under 1 mm | crowns of the horizontal bolt holes |
-| `case_base_v2`, `case_lid_v2` | 3.1 mm | board shelves and openings |
-| `arm_lid_v2`, `case_clamp_v2` | none | print with no overhang at all |
+| `case_base_v2` | 14 and 27 mm | the USB and SD window lintels (2.5 mm deep) |
+| `hub_top_v1` | 8.9 mm | the engraved M1 arrow, facing the bed |
+| `arm_body_v4` | 6 mm | cable groove under the tab |
+| `hub_bottom_v3` | 6 mm | cable tunnels |
+| `arm_body_v4` | 5 mm / 1.5 mm | cable tunnel / lid undercut |
+| tube fittings | under 1 mm | crowns of the sideways M4 holes (ream if tight) |
+| `arm_lid_v2`, `case_clamp_v2` | none | |
 
-The M1 arrow is the widest span left in the build, and it is the one that matters
-least: it is 1.2 mm deep, it faces the bed, and the surface it produces is the
-inside of a decorative groove. Cutting the arrow as an outline instead of a solid
-triangle would take it to about 1.5 mm if that ever became worth doing.
+PETG bridges these fine with the fan on. Use a brim.
 
-The horizontal bolt holes in the tube fittings are a different animal — a hole
-drilled sideways always overhangs at its crown, whatever you do. They come out
-slightly oval; ream them if the M4 is tight.
-
-There was briefly a v3 that replaced the channel ceiling with a 45° gable so it
-would not bridge at all. It worked, but it solved a problem the two-part arm does
-not have — the lid already removes that ceiling — and it cost 2.6 g an arm to do
-it. Kept in the superseded list as a record, not as an option.
-
-`arm_body_v4_mic15.stl` + `arm_lid_v2_mic15_slide.stl` go together with **no glue
-and no fasteners** — the lid is a T-bar that slides into a matching T-slot in the
-body, from the root end, until it stops against the tip block.
+The arm body and lid need no glue or screws: the lid is a T-bar that slides into
+a T-slot from the root end until it stops at the tip block, and the hub's top
+plate then covers its end so it can't slide back out. Slide it out to rework a
+wire. Print the lid flange-down.
 
 ![Arm as body and slide-in lid](imgs/arm_split.jpg)
 
-| | |
+| Lid detail | |
 |---|---|
-| Lid flange | 14.6 mm wide × 1.95 mm |
-| Lid rib | 11.6 mm wide × 1.55 mm, flush with the top face |
-| Retaining lip | 1.4 mm thick, projecting 1.5 mm |
-| Support shelf | 1.5 mm wide |
+| Flange | 14.6 × 1.95 mm |
+| Rib | 11.6 × 1.55 mm, flush with the top |
+| Retaining lip | 1.4 mm thick, 1.5 mm reach (0.8 mm was easy to snap off) |
 | Clearance | 0.20 mm per side, 0.15 mm vertical |
 | Travel | 34.6 mm |
 
-The lip started at 0.8 mm — four layers — which is plenty for the load (the lid
-weighs 2 g) but thin enough to snap off while threading the lid in. The lid pocket
-was deepened from 2.5 to 3.5 mm to buy the thickness back; the cable channel loses
-1 mm of height and is still 12 × 9 mm.
+Windscreens aren't designed yet. The tip is a Ø20 rounded boss, so a foam ball
+with a matching bore pushes on.
 
-Print the lid **flange down**. The rib is the narrower of the two, so it sits on
-the wider flange and the part has no overhang at all.
-
-The flange rests on shelves inside the slot and the lips above it stop it lifting
-out, so it is captive in every direction but one. That last one is closed on
-assembly: the hub's top plate overlaps the lid's end face, so once the arm is
-bolted down the lid cannot come back out.
-
-This is why the split had to move. A lid that slides in sideways cannot contain
-the Ø20 tip — it would not fit through its own slot — so the tip, with the
-microphone seat, now belongs to the body. That turns out better anyway: with no
-lid over it, the body's cable channel has **no ceiling to bridge at all**, and the
-lid becomes a 1.5 g strip that prints in minutes.
-
-It also means the wiring is reworkable. Slide the lid out, change a wire, slide it
-back — no glue to cut.
-
-Print all three arms together, from the same file and spool, so their errors stay
-common-mode.
-
-### Still open
-
-Windscreens are not designed in yet. The tip is a Ø16 rounded boss, so a foam
-ball with a matching bore pushes straight on; a retaining feature can be added
-once the actual foam is in hand.
-
-## The electronics box
+## Electronics box
 
 ![System: array on its tripod, electronics box standing beside it](imgs/system_overview.jpg)
 
-A separate box that stands on the ground next to the tripod, holding the ESP32 and
-the SD module. It carries no part of the array, so nothing in it affects geometry
-or accuracy — which is exactly why it is separate.
+A separate box on the ground next to the tripod holds the ESP32 and the SD
+module, so nothing in it affects the geometry.
 
 ![Base and lid](imgs/case_exploded.jpg)
 
-### Why it does not fit the boards tightly
-
-Neither board has a dimension you can trust. The ESP32 DevKit V1 is
+Neither board has reliable dimensions. The DevKit V1 is
 [documented at 51.8 × 28.2 mm](https://mischianti.org/doit-esp32-dev-kit-v1-high-resolution-pinout-and-specs/)
-and measures 50 × 28 with calipers — a difference explained by whether the USB
-shell is included. The SD module is worse: the
-[shop lists 50 × 33 mm](https://arduino.ua/prod589-modyl-sd-card-dlya-arduino-spi),
-calipers say 46 × 29, and other sellers quote 41 × 24, 42 × 24 and 53 × 38 for
-boards under the same name. There is no datasheet. A 4 mm discrepancy on both
-sides is not rounding — it is a different board revision.
+and measures 50 × 28; the SD module is
+[listed at 50 × 33](https://arduino.ua/prod589-modyl-sd-card-dlya-arduino-spi),
+measures 46 × 29, and other sellers quote anything from 41 × 24 to 53 × 38. So
+the bays fit the largest plausible board and the boards are clamped rather than
+press-fitted.
 
-So the mounting is adjustable rather than fitted. The bays are sized for the
-largest plausible board — 53 × 29.5 mm for the ESP32 and 52 × 35 mm for the SD
-module — and each board is held the same way at any size between 46 × 29 and
-50 × 33. Boards can be moved, swapped, or replaced with something else entirely
-without reprinting the box.
+The ESP32's header pins stick out 3 mm underneath along both long edges, so it
+can't sit on the floor or on its edges. Each board sits on four Ø9 × 4 mm pads
+in the middle. A fixed lip holds one edge and a sliding clamp
+(`case_clamp_v2.stl`, one M3 in a T-slot, 12 mm travel) holds the other.
 
-### How the boards are held
-
-Two constraints shape this, and both come from the ESP32.
-
-Its pin headers are soldered on the underside, and the tails stand about 3 mm
-proud. **The board cannot rest on the floor.** And the pin rows run along both
-long edges, so **it cannot be supported at its edges either** — anything under the
-edge fouls the pins.
-
-What is left is the middle. Each board sits on **four Ø9 pads, 4 mm tall**, well
-inboard of the pin rows, putting the PCB underside at 9 mm and its top face at
-10.6 mm. The pin tails hang free with 1 mm to spare above the floor.
-
-Retention is then purely from above, on the board's edges:
-
-| | |
-|---|---|
-| Outer edge | fixed lip moulded into the wall, reaching 2.5 mm over the board |
-| Inner edge | `case_clamp_v2.stl` on a T-slot, one M3 |
-| Clamp travel | 12 mm — covers every quoted board width |
-| Board thickness assumed | 1.6 mm |
-
-Slide the board under the fixed lip, push the clamp against the free edge,
-tighten. The clamp carries a 3.4 mm key rib that rides inside the slot, so one
-screw is enough — it cannot rotate. Its nut lives in a channel milled into the
-underside of the floor and slides in from the outside edge, which is why the floor
-is 5 mm rather than 3.
-
-Cable-tie slots are still in the floor beside each bay, for tying down wiring
-looms or anything the clamps do not suit.
-
-### Openings
-
-| Feature | Size | Where |
+| Opening | Size | Where |
 |---|---|---|
-| USB-C window | 14 × 10 mm | short wall, on the ESP32 bay |
-| SD card window | 27 × 10 mm | short wall, on the SD bay |
-| Cable entry | Ø12 mm | opposite wall, between the bays |
+| USB-C | 14 × 10 mm | short wall, ESP32 bay |
+| SD card | 27 × 10 mm | short wall, SD bay |
+| Cable entry | Ø12 mm | opposite wall |
 
-The windows are deliberately much bigger than the connectors, because the boards'
-positions are set by where you tie them down, not by the box. Both straddle the board's top face at
-10.6 mm and leave 9 mm of solid wall above, so the wall is not cut into pillars. Two cable-tie slots beside the cable entry take the strain off
-the joints inside.
-
-The seven conductors from the array (VDD, GND, SCK, WS and three SD lines) come in
-through the Ø12 entry. Nothing is weatherproof yet — that belongs with the IP
-enclosure, and these windows will need covers.
-
-### Parts
+Seven wires come in from the array: VDD, GND, SCK, WS and the three mic data
+lines. Nothing is weatherproof yet.
 
 | STL | Qty | Mass | Size (mm) |
 |---|---|---|---|
@@ -561,229 +263,102 @@ enclosure, and these windows will need covers.
 | `case_lid_v2_63x108.stl` | 1 | 25.3 g | 63 × 108 × 5 |
 | `case_clamp_v2.stl` | 2 | 2.5 g | 25 × 12 × 10 |
 
-101 g of PETG. Hardware:
+101 g of PETG. 4 × M3×30 + nuts for the lid (nuts sit flush in hex pockets
+under the bosses), 2 × M3×16 + nuts for the clamps. Base prints floor-down, lid
+top-down, clamp lip-down. The v1 box had no board mounting and a floor too thin
+for captive nuts.
 
-- 4 × M3×30 + 4 nuts — lid to base. The nuts drop into 3.2 mm hex pockets in the
-  underside of the bosses, so a 2.4 mm M3 nut ends up flush and the box still
-  stands flat. Screw heads countersink into the lid.
-- 2 × M3×16 + 2 nuts — the board clamps, nuts captive in the floor's T-channels.
-
-Everything prints without support. The base goes floor-down, open side up; its
-only overhangs are the two window ceilings, bridging 14 and 27 mm. The lid prints
-**top face down**, so its locating lip points up and the visible face is the one
-that came off the plate. The clamp prints **lip down** — the section only narrows
-going up, so there is no overhang at all.
-
-`case_base_v1_63x95.stl` and `case_lid_v1_63x95.stl` are superseded: they had no
-board mounting, and their floor was too thin to hold a captive nut.
+One conflict I haven't resolved: with the box next to the tripod, the I2S lines
+run down the mast, well past the 10–15 cm the INMP441 is comfortable with. It
+worked on the bench; outdoors it will need twisted pairs or shielded cable, or
+the electronics moving up under the hub.
 
 ## Components
 
-### Microcontroller
-
-A devkit board built around the ESP-WROOM-32 module: 30 pins, USB-C for power
-and flashing. The brain of the device — it reads the microphones, runs the
-correlation math, and writes results to the card.
-
-The critical property is that the chip has **two** independent I2S controllers,
-which is what makes three microphones possible at all — see the wiring section
-above for how they share a clock.
-
-Quantity: 1.
-
-### Microphones
-
-INMP441 — a digital MEMS microphone with an I2S output, on a round breakout
-board (headers soldered on for the breadboard stage; the arm's microphone
-pocket was deepened to 9.5 mm precisely so the board still seats with the pins
-on). A digital output means there is no
-analog signal on the run from microphone to board that stray pickup could
-corrupt — that is the main reason to choose this part over an analog capsule
-plus preamp.
-
-Supply is strictly 3.3 V; 5 V will destroy the module. The L/R pin selects which
-slot of the stereo stream the microphone drives its data into: tied to GND it is
-the left channel, tied to 3V3 the right. That is exactly how two microphones
-share one I2S bus.
-
-Quantity: 3 (one per triangle vertex, baseline about 15 cm).
-
-### microSD module
-
-A microSD card holder with an SPI interface (GND, MISO, SCK, MOSI, CS, power).
-It stores raw 3-channel recordings (WAV) plus a log of detections and azimuths.
-The recordings matter mostly for debugging the algorithm offline on a computer:
-tuning filter and correlation parameters in Python against a saved file is far
-easier than reflashing the board on every iteration.
-
-This is the compact variant, with neither an onboard regulator nor a level
-shifter, so it runs directly on 3.3 V — the same rail as the microphones. (The
-larger modules, the ones carrying an LDO, are what expect 5 V; this is not one of
-those.)
-
-Quantity: 1 (plus the card itself).
-
-### Rest of the build
-
-- A rigid frame for the array — designed and modelled, see
-  [The printed frame](#the-printed-frame). Vertices are held to about 1 mm,
-  because geometric error maps directly onto azimuth error.
-- A Ø25 mm tube for the mast (aluminium, PVC or acrylic), cut to the height you
-  want, plus three ground pegs.
-- Foam windscreens for every microphone: wind is the main TDOA killer outdoors.
-- Protoboard, wire, passives. Keep I2S runs short (10–15 cm); for spatially
-  separated microphones use twisted pairs or shielded cable.
-- Power: USB-C 5 V on the bench; for the field, an 18650 with a protection board
-  and 3.3 V / 5 V regulation.
-- Later: a weatherized (IP-rated) enclosure, and rain protection for the
-  upward-facing microphone ports.
+- **ESP32 DevKit V1** (ESP-WROOM-32, 30 pins). It has two I2S controllers, which
+  is what makes three mics possible.
+- **3 × INMP441**, digital I2S MEMS mics on 15 mm round boards, 3.3 V only.
+  Digital output means no analog run for noise to get into.
+- **microSD module**, SPI, the compact kind with no regulator or level shifter,
+  so 3.3 V only.
+- Ø25 mm tube, ground pegs, foam windscreens, wire.
+- Power: USB on the bench; an 18650 with protection and regulation for the field.
 
 ## Software
 
 ![Pipeline accuracy against the Cramér–Rao bound](docs/img/error_budget.png)
 
-### What a node does
+Every 21 ms the firmware reads 1024 samples per mic, removes the fixed offset
+between the two data lines, and hands the frame to a DSP task on the other core.
+That task keeps the 200–4000 Hz FFT bins (where propeller and engine harmonics
+are and most wind isn't) and accumulates the three cross-spectra. Every 256 ms
+it runs GCC-PHAT per pair and solves for the bearing.
 
-Every 21 ms the capture task pulls 1024 samples per microphone from the two I2S
-controllers and removes the constant FIFO offset between them. It hands the
-frame to the DSP task on the other core. That task windows and transforms each
-channel and keeps only the 200–4000 Hz bins, where propeller and engine
-harmonics live and most wind does not. It accumulates the three cross-spectra
-over twelve frames.
-
-Every 256 ms it whitens them (PHAT), finds the delay for each microphone pair,
-and solves for the bearing by least squares. Averaging *before* whitening is
-what buys robustness: a propeller harmonic adds up coherently frame after frame,
-while wind — turbulence local to each port, not a travelling wave — averages
-towards zero.
-
-A detection needs three things at once:
-
-- band energy above an adaptive noise floor;
-- a tonal (harmonic) spectrum;
-- coherence between the microphones.
-
-On top of that the three pair delays must close
-(τ₀₁ + τ₁₂ − τ₀₂ ≈ 0). That closure check is a free consistency test that
-catches a pair locked onto a reflection. The output is one line per block:
+Averaging the cross-spectra before PHAT is what makes it hold up in wind: a
+harmonic adds up coherently, while wind is local turbulence at each port and
+averages out. A detection needs band energy over an adaptive noise floor, a
+tonal spectrum, and coherence between mics, and the three pair delays must be
+consistent (τ₀₁ + τ₁₂ − τ₀₂ ≈ 0). The output is one line per block:
 
 ```
 $UAVDOA,1,48213,1,62.4,152.4,18.7,0.83,11.2,0.71,1,151.9*38
-        node  time  det az_rel az_true el conf snr coh track track_az
+        node time det az_rel az_true el conf snr coh track track_az
 ```
 
-Details, build instructions and a bring-up checklist are in
-[`firmware/README.md`](firmware/README.md).
+In simulation (plot above) the bearing is better than 1° above about 8 dB of
+in-band SNR, and below the 1 mm geometry error above about 15 dB. Wind as loud
+as the drone adds 25–35 % error. The pipeline is 5–10× above the Cramér–Rao
+bound; part of that is the bound's flat-spectrum assumption, part is PHAT
+weighting noisy bins equally, so an SNR-weighted GCC is the next thing to try.
 
-### How good it is, in simulation
-
-The plot above runs the real pipeline, one 256 ms block per trial, against a
-synthetic drone at random bearings. Above about 8 dB of in-band SNR the bearing
-is better than 1°. Above about 15 dB the timing error drops below what 1 mm of
-microphone position error costs (the dotted line), which is exactly the
-tolerance the frame was designed to. Wind as loud as the drone costs a quarter to a
-third more error, not a collapse.
-
-The pipeline sits 5–10× above the Cramér–Rao bound. Part of that gap is the
-bound's flat-spectrum assumption, which a harmonic source does not meet. Part
-is real: PHAT weights every bin equally, noise included, so an SNR-weighted
-GCC is the obvious next improvement.
-
-| Error source | Azimuth cost |
-| --- | --- |
-| 1 mm microphone position error | 0.38° |
-| 1 sample of timing (7.1 mm), no interpolation | 2.7° |
-| 0.1 sample, typical after sub-sample interpolation | 0.27° |
-| Speed of sound ±5 % (±15 °C) | ~0° (common scale, cancels); biases elevation |
-| Unknown M1 heading | 1 : 1 — measure it |
-
-### Several nodes: from bearings to positions
+| Error source | Azimuth |
+|---|---|
+| 1 mm mic position | 0.38° |
+| 1 sample of timing | 2.7° |
+| 0.1 sample (after interpolation) | 0.27° |
+| Speed of sound ±5 % | ~0° (cancels), biases elevation |
+| M1 heading error | 1:1 |
 
 ![Bearing-only fusion of three nodes](docs/img/triangulation.png)
 
-One node gives a direction; two or more give a position where their bearings
-cross. That is how networked systems such as Sky Fortress turn cheap nodes into
-tracks. `analysis/uavdoa/fusion.py` does it as weighted least squares with a
-covariance, so every fix carries an honest error ellipse. The ellipse stretches
-wherever the nodes see the target from similar angles.
+With two or more nodes the bearings cross and give a position.
+`analysis/uavdoa/fusion.py` does weighted least squares and returns an error
+ellipse, which stretches when the nodes see the target from similar angles.
+`analysis/scripts/cot_bridge.py` publishes nodes and fixes as Cursor-on-Target
+so they show up in ATAK. Fixes are typed "unknown air", not hostile.
 
-`analysis/scripts/cot_bridge.py` reads `$UAVDOA` from one or more nodes. It
-publishes each node, with its bearing wedge, and each fused fix as
-Cursor-on-Target on ATAK's default multicast group, so the picture lands on
-a TAK map without custom software. A fix is typed "unknown air", not "hostile":
-the sensor reports a sound, and the operator decides what it is.
+Build, config and bring-up steps are in [`firmware/README.md`](firmware/README.md).
+CI runs the host C++ tests, the Python tests (including a check that C++ and
+Python give the same result on the same recording), the click test on synthetic
+data, and firmware builds for both chips.
 
-### Repository layout
+## Status
 
-```
-firmware/     ESP-IDF project: capture, DSP, SD logging, reports (+ host tests)
-analysis/     Python reference DSP, simulator, click test, CRLB, fusion, CoT bridge
-hardware/     STL files for the printed frame and electronics box
-docs/         research notes and generated figures
-imgs/         schematic and renders used in this README
-```
-
-CI (`.github/workflows/ci.yml`) runs the host C++ tests, the Python tests
-with the C++/Python parity check, the click-test gate on synthetic data, and
-firmware builds for both chips.
-
-## Project status
-
-The frame is printed and assembled, and the whole signal chain has had first
-light on the bench: all three microphones and the SD card, alive at the same
-time on one ESP32.
+The frame is printed and assembled. In September 2026 all three mics and the
+SD card ran together on the bench, using quick MicroPython tests:
 
 ![Bench bring-up: printed head assembled, three microphones wired through a breadboard to the ESP32 and SD module](imgs/bench_bringup.jpg)
 
-Bench bring-up (September 2026), done with throwaway MicroPython smoke tests
-over the pin map above:
+- M1 + M2 came through as one stereo stream on `SD_A`, so the L/R straps work.
+- M3 came through on `SD_B` (silent at first because its VDD wasn't connected).
+- The SD card mounted, wrote and read back.
 
-- **M1 + M2** verified as one stereo stream on `SD_A` — both channels carry
-  independent live audio, so the L/R slot mechanism works as designed.
-- **M3** verified on `SD_B`. (Its silence on the first attempt traced to an
-  unconnected VDD — see the wiring section for why that reads as a dead line,
-  not a noisy one.)
-- **SD card** mounts over SPI at 3.3 V, writes and reads back. A 4 GB card
-  holds ~1.75 h of raw 3-channel 48 kHz / 32-bit audio.
+MicroPython's I2S is master-only, so in that test I2S1 made its own clock and
+fed M3 from GPIO 14/27. Good enough to see the mics alive, useless for TDOA
+because the streams aren't sample-locked.
 
-One deliberate deviation from the target design, worth being honest about:
-MicroPython's I2S driver is master-only, so in these tests the second
-controller generated its own clock and M3's SCK/WS were fed from GPIO 14/27
-directly. That is fine for "is it alive", useless for TDOA — the streams are
-not sample-locked. Moving M3's clock lines onto the shared bus and configuring
-I2S1 as a slave needs proper firmware (Arduino's I2S library has no slave mode
-either, see [docs/RESEARCH.md](docs/RESEARCH.md#5-firmware-stack-the-decision)).
+The bench and those scripts aren't accessible any more. The firmware here is a
+fresh ESP-IDF implementation of the full design, with I2S1 as a real slave. It
+builds for both chips and the DSP is tested against the Python reference, but
+it hasn't run on the hardware yet. Next steps once the bench is back:
 
-The bench build and the smoke-test scripts on it are no longer accessible, so
-the firmware in this repository is a clean ESP-IDF implementation of the
-target design, written against the pin map above:
-
-- **Done:** firmware for both chips (builds cleanly), with I2S1 as a true
-  slave on the shared clock. Its DSP core is verified against a Python
-  reference and a simulator.
-- **Done:** the offline tools — click test, localisation, error budget.
-- **Done:** multi-node fusion and TAK output.
-- **Not yet done: running this firmware on the hardware.** Once the bench is
-  back, the steps are: move M3's SCK/WS onto the shared bus and keep the
-  14/27 return jumpers. Then comes the real gate: **proving** that the offset
-  between the two data lines is a constant. Without confirmed
-  synchronisation, direction estimation is meaningless.
-
-The test for it is simple. Put an impulse source — a clap, or a click from a small
-speaker — directly above the centroid, equally distant from all three microphones.
-The true time difference is then zero for every pair, so whatever delay the
-correlation reports is the buffer offset itself. It can then be measured,
-repeated across reboots, and watched for drift. Firmware has a calibration mode
-for exactly this, and `analysis/scripts/click_test.py` turns a dozen recordings
-into a PASS/FAIL and the constant to configure.
-
-After that, roughly in order:
-
-- Characterise real targets and re-tune the detector on field recordings. No
-  public Shahed or FPV dataset exists, so this is fieldwork.
-- An SNR-weighted GCC, closing part of the gap to the bound.
-- A small on-node classifier (TFLite Micro / ESP-DL) in the detector's slot,
-  trained on public drone datasets plus our own recordings.
-- Time sync across nodes without GNSS, for fusing detections rather than only
-  bearings.
-- Windscreens and the weatherized enclosure.
+1. Move M3's SCK/WS onto the shared bus, keep the 14/27 return jumpers.
+2. Click test: a click source above the centroid, where the true delay is zero
+   for every pair, so whatever the correlation reports is the buffer offset.
+   Record across a dozen reboots and run `analysis/scripts/click_test.py`; it
+   checks the offset is an integer, the same every boot, and doesn't drift,
+   then prints the value to configure. Nothing else matters until this passes.
+3. Field recordings of real drones to tune the detector (there's no public
+   Shahed or FPV audio).
+4. SNR-weighted GCC; a small on-device classifier; time sync between nodes
+   without GNSS; windscreens and an IP enclosure.

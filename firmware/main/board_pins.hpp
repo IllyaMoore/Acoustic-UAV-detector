@@ -1,5 +1,5 @@
 // Pin map - one block per chip, selected at compile time by the IDF target.
-// Mirrors the "Pin map" section of CLAUDE.md; keep the two in step.
+// The WROOM-32 map matches the wiring table in the README.
 #pragma once
 
 #include "sdkconfig.h"

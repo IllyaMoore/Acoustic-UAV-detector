@@ -1,90 +1,76 @@
 # Firmware
 
-ESP-IDF (C++17, FreeRTOS), built with PlatformIO or plain `idf.py`. Targets:
-the ESP-WROOM-32 devkit on hand (`esp32dev`, the default) and the ESP32-S3
-DevKitC (`esp32s3`). Why ESP-IDF and not Arduino or Rust: see
-[docs/RESEARCH.md §5](../docs/RESEARCH.md#5-firmware-stack-the-decision).
+ESP-IDF, C++17, built with PlatformIO. Two targets: `esp32dev` (the WROOM-32
+DevKit V1, default) and `esp32s3`. Why not Arduino or Rust:
+[docs/RESEARCH.md](../docs/RESEARCH.md#firmware-stack).
+
+```sh
+pio run                   # build esp32dev
+pio run -t upload         # flash
+pio device monitor        # logs + $UAVDOA lines
+pio run -t menuconfig     # "Acoustic UAV detector" menu
+pio run -e esp32s3
+make -C test/host test    # DSP unit tests on the PC, no board needed
+```
 
 ## Layout
 
 ```
-firmware/
-├── components/dsp/        hardware-free signal chain (also built on the host)
-│   ├── fft                radix-2 complex FFT
-│   ├── gcc_phat           PHAT peak by direct lag evaluation, sub-sample fit
-│   ├── doa                3 pair delays -> azimuth (+|elevation|), closure check
-│   ├── pipeline           framing, cross-spectrum averaging, detector, tracker
-│   └── aligner            removes the constant SD_A/SD_B FIFO offset
-├── main/                  everything that touches hardware
-│   ├── capture            I2S0 master + I2S1 slave, one clock domain
-│   ├── sd_logger          WAV + detections.csv on microSD, own task
-│   ├── report             $UAVDOA / $UAVCAL sentences
-│   ├── board_pins.hpp     WROOM-32 and S3 pin maps
-│   ├── Kconfig.projbuild  node id, heading, FIFO offset, modes
-│   └── app_main           tasks and wiring
-└── test/host/             unit tests + doa_cli (runs the pipeline on a WAV)
+components/dsp/   no hardware dependencies, also built on the host
+  fft             radix-2 complex FFT
+  gcc_phat        PHAT peak by evaluating only the physical lags
+  doa             pair delays -> azimuth, |elevation|, closure check
+  pipeline        framing, cross-spectrum averaging, detector, tracker
+  aligner         removes the fixed SD_A/SD_B offset
+main/             hardware
+  capture         I2S0 master + I2S1 slave
+  sd_logger       WAV + detections.csv, own task
+  report          $UAVDOA / $UAVCAL lines
+  board_pins.hpp  WROOM-32 and S3 pin maps
+test/host/        unit tests, and doa_cli which runs the pipeline on a WAV
 ```
 
-The split is the point. Everything in `components/dsp` compiles and is
-tested on a laptop in about a second, and `doa_cli` replays SD-card recordings
-through exactly the code that runs on the chip. Only `main/` needs hardware.
-
-## Build, flash, watch
-
-```sh
-cd firmware
-pio run                        # build for esp32dev
-pio run -t upload              # flash
-pio device monitor             # console: logs + $UAVDOA sentences
-pio run -t menuconfig          # "Acoustic UAV detector" menu
-pio run -e esp32s3             # the S3 variant
-make -C test/host test         # host unit tests, no board needed
-```
+`doa_cli` runs the exact on-chip DSP over a recording pulled off the SD card,
+so thresholds can be tuned without reflashing.
 
 ## Tasks
 
-```
-core 0  capture    prio 10  I2S0+I2S1 -> aligner -> float frame ──queue──► dsp
-                                        └─► int16 chunk ──ring buffer──► sd_logger
-core 0  sd_logger  prio 3   ring -> rec_NNNNN.wav, lines -> detections.csv
-core 1  dsp        prio 8   uav::Pipeline -> $UAVDOA on UART, LED, CSV line
-```
+| Task | Core | Prio | Does |
+|---|---|---|---|
+| capture | 0 | 10 | reads both I2S, aligns, sends frames to dsp, audio to the SD ring |
+| sd_logger | 0 | 3 | writes `rec_NNNNN.wav` and `detections.csv` |
+| dsp | 1 | 8 | pipeline, prints `$UAVDOA`, drives the LED |
 
-- **Capture never blocks.** If DSP falls behind, a frame is dropped and
-  counted. If the card stalls (cards do, for 100+ ms), an audio chunk is
-  dropped and counted. Both counters appear in the 10-second status log with
-  the measured DSP load and free heap.
-- **Fixed memory.** There is a 4-frame pool and a 64 kB ring, with no malloc
-  in the steady state. Static RAM is about 82 kB on the WROOM-32.
-- **The raw WAV keeps the FIFO offset**, so it can be re-measured offline;
-  only the DSP path is aligned.
+Capture never waits. If DSP falls behind it drops a frame, if the card stalls it
+drops an audio chunk, and both counts show up in a status log every 10 s along
+with the measured DSP load. Memory is a fixed 4-frame pool and a 64 kB ring
+buffer, about 82 kB of static RAM on the WROOM-32. The WAV keeps the raw offset
+so it can be re-measured later; only the DSP path is aligned.
 
-## Configuration (menuconfig → "Acoustic UAV detector")
+## Config (menuconfig)
 
-| Option | Default | Notes |
-| --- | --- | --- |
-| `UAV_NODE_ID` | 1 | carried in every sentence |
-| `UAV_ARRAY_HEADING_DEG` | 0 | true heading of the M1 arm, measured at siting |
+| Option | Default | |
+|---|---|---|
+| `UAV_NODE_ID` | 1 | |
+| `UAV_ARRAY_HEADING_DEG` | 0 | true heading of the M1 arm |
 | `UAV_M3_LAG_SAMPLES` | 0 | from the click test |
-| `UAV_CLOCK_LOOPBACK_*` | external | the jumper (visible on a scope) or the GPIO matrix |
-| `UAV_SWAP_SD_A_SLOTS` | n | if tapping M1 shows on channel 2 |
-| `UAV_RECORD_WAV` | y | 3 ch × 16 bit × 48 kHz = 288 kB/s |
-| `UAV_WAV_FILE_SECONDS` | 60 | header rewritten every 2 s, so it survives power loss |
-| `UAV_WAV_GAIN_BITS` | 2 | shift before truncating 24 → 16 bits |
-| `UAV_CALIBRATION_MODE` | n | click-test mode: 500-8000 Hz, no alignment, $UAVCAL |
-| `UAV_STATUS_LED_GPIO` | 2 / -1 | the onboard LED on the WROOM devkit |
+| `UAV_CLOCK_LOOPBACK_*` | external | jumper wires, or internal via the GPIO matrix |
+| `UAV_SWAP_SD_A_SLOTS` | n | if M1 shows up on channel 2 |
+| `UAV_RECORD_WAV` | y | 3 ch, 16 bit, 48 kHz = 288 kB/s |
+| `UAV_WAV_FILE_SECONDS` | 60 | header rewritten every 2 s, survives power loss |
+| `UAV_WAV_GAIN_BITS` | 2 | shift before cutting 24 bits to 16 |
+| `UAV_CALIBRATION_MODE` | n | click test: 500–8000 Hz, no alignment, prints `$UAVCAL` |
+| `UAV_STATUS_LED_GPIO` | 2 / -1 | onboard LED on the WROOM devkit |
 
-Pins follow CLAUDE.md. In external-loopback mode, add two jumpers:
+Clock return jumpers for the external mode:
 
 | | WROOM-32 | ESP32-S3 |
-| --- | --- | --- |
-| SCK → I2S1 BCK in | GPIO26 → GPIO14 | GPIO16 → GPIO4 |
-| WS → I2S1 WS in | GPIO25 → GPIO27 | GPIO15 → GPIO5 |
+|---|---|---|
+| SCK to I2S1 | GPIO26 → GPIO14 | GPIO16 → GPIO4 |
+| WS to I2S1 | GPIO25 → GPIO27 | GPIO15 → GPIO5 |
 
-These are the bench's "SCK return" / "WS return" pins. In the MicroPython
-smoke test, GPIO14/27 *drove* M3's clock from a second master. With this
-firmware they are inputs, so M3's SCK/WS must move onto the shared bus
-(GPIO26/25) first, or M3 gets no clock at all.
+On the bench GPIO14/27 used to drive M3's clock from a second master. Here they
+are inputs, so M3's SCK/WS have to move to GPIO26/25 first or M3 gets no clock.
 
 ## Output
 
@@ -93,37 +79,23 @@ $UAVDOA,<node>,<uptime_ms>,<det>,<az_rel>,<az_true>,<el>,<conf>,<snr_db>,<coh>,<
 $UAVDOA,1,48213,1,62.4,152.4,18.7,0.83,11.2,0.71,1,151.9*38
 ```
 
-One sentence every 256 ms. `el` is `-1` when undefined. The XOR checksum
-follows NMEA 0183. `analysis/scripts/cot_bridge.py` turns these into
-Cursor-on-Target for ATAK.
+One line per 256 ms, NMEA-style XOR checksum, `el` is -1 when undefined.
+`analysis/scripts/cot_bridge.py` turns these into CoT for ATAK.
 
-## Bring-up checklist
+## Bring-up
 
-These steps are ordered: each one is the prerequisite for the next.
+1. Flash, open the monitor, check 0 dropped frames. Scope SCK (3.072 MHz) and
+   WS (48 kHz) at the far mic.
+2. Tap each mic with a pencil and look at the WAV (Audacity is fine): M1 on
+   channel 1, M2 on 2, M3 on 3. If M1 and M2 are swapped, set
+   `UAV_SWAP_SD_A_SLOTS`.
+3. Click test: calibration mode on, clicks above the centroid, a dozen reboots,
+   then `analysis/scripts/click_test.py rec_*.wav`. Copy the value into
+   `UAV_M3_LAG_SAMPLES`, calibration mode off.
+4. Play drone audio from a speaker at known bearings 3–5 m away. A constant
+   error means the heading, mic coordinates or channel map is wrong.
+5. Outdoors with windscreens: record, replay through `doa_cli`, retune the
+   thresholds in `PipelineConfig`.
 
-1. **Power and clocks.** Flash, open the monitor, check that the status line
-   shows 0 dropped frames. Scope SCK (3.072 MHz) and WS (48 kHz) at the far
-   mic.
-2. **Channel map.** Tap each mic in turn with a pencil and run
-   `analysis/scripts/localize.py` on the recording (or look at it in
-   Audacity). M1 must land on channel 1, M2 on 2, M3 on 3. If M1 and M2 are
-   swapped, set `UAV_SWAP_SD_A_SLOTS`.
-3. **Click test (the gate).** Set `UAV_CALIBRATION_MODE`. Put a click source
-   above the centroid, record across a dozen reboots, and run
-   `analysis/scripts/click_test.py rec_*.wav`. All three checks must PASS.
-   Copy the printed value into `UAV_M3_LAG_SAMPLES` and clear calibration
-   mode.
-4. **Known bearing.** Play drone audio from a speaker at a measured bearing
-   and elevation 3-5 m away. Compare `$UAVDOA` with the truth at 8 bearings.
-   The residual error should look like `docs/img/error_budget.png`, not
-   like a constant offset (a constant offset means the heading, the mic
-   coordinates or the channel map is wrong).
-5. **Outdoors.** With windscreens fitted, record, replay through `doa_cli`,
-   and re-tune the detector thresholds in `PipelineConfig`.
-
-## Honest status
-
-The firmware builds for both targets, and its DSP core is covered by host
-tests and cross-checked against the Python reference. **It has not yet run on
-the assembled array**, because that hardware is not currently accessible. Expect the bring-up above to find issues in `capture.cpp` (slot order,
-slave start-up) that no simulator can.
+None of this has been done with this firmware yet. Expect step 2 and 3 to turn
+up problems in `capture.cpp` (slot order, slave start-up).

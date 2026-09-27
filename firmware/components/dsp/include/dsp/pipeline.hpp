@@ -1,5 +1,5 @@
-// The whole on-device signal chain, hardware-free so it runs unchanged in the
-// host tests and in tools/doa_cli on recordings pulled off the SD card.
+// The on-device signal chain. No hardware dependencies, so it also runs in the
+// host tests and in test/host/doa_cli.
 //
 //   3 x 1024 samples ─► Hann ─► FFT (2048, zero-padded) ─► keep in-band bins
 //          │                                                   │
@@ -12,12 +12,9 @@
 //          ├─ detector: band SNR vs adaptive floor, tonality, coherence
 //          └─ tracker: smoothed bearing while detections continue
 //
-// Averaging the cross-spectra BEFORE the PHAT weighting (rather than
-// averaging K separate correlation peaks) is what makes this robust: a
-// propeller harmonic adds up coherently frame after frame while wind, which is
-// uncorrelated between capsules, averages toward zero.
-//
-// Mirrored step-for-step by analysis/uavdoa/pipeline.py.
+// Cross-spectra are averaged before PHAT weighting: harmonics add up
+// coherently, wind (uncorrelated between capsules) averages out.
+// Mirrored by analysis/uavdoa/pipeline.py.
 #pragma once
 
 #include <array>

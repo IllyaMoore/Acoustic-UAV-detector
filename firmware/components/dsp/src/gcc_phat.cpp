@@ -23,10 +23,9 @@ PairDelay gcc_phat_peak(const cf32 *cross, std::size_t bin_lo, std::size_t n_bin
     if (active == 0) return out;
 
     // cc(l) = (1/active) * sum_b Re{ r_b * exp(+j 2 pi k_b l / nfft) }.
-    // exp(+j 2 pi k l / N) for consecutive k is built by a phasor recurrence
-    // (one complex multiply per bin) rather than a sin/cos per bin - on the
-    // ESP32 that is the difference between ~1 % and ~15 % of a core. Drift
-    // over a few hundred steps is ~1e-5, far below anything that matters.
+    // The phasor for consecutive k comes from a recurrence (one complex
+    // multiply per bin) instead of sin/cos per bin; drift over a few hundred
+    // steps is ~1e-5.
     const int n_lags = 2 * max_lag + 1;
     std::vector<float> cc(n_lags);
     const double two_pi = 6.283185307179586;

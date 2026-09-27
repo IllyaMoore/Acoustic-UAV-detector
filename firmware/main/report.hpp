@@ -3,12 +3,9 @@
 //   $UAVDOA,<node>,<uptime_ms>,<det>,<az_rel>,<az_true>,<el>,<conf>,<snr_db>,<coh>,<trk>,<trk_az_true>*HH
 //   $UAVCAL,<node>,<uptime_ms>,<lag01>,<lag02>,<lag12>,<peak01>,<peak02>,<peak12>*HH
 //
-// Why NMEA-style rather than JSON: it is what GPS receivers, AIS and a lot of
-// military/maritime kit already speak, it is line-oriented and self-checking
-// (XOR checksum), trivially parsed on anything from a shell script to an
-// FPGA, and it survives a noisy RS-485 run. ESP_LOG lines share the UART, but
-// only sentences start with '$', so a consumer just filters on that.
-// analysis/scripts/cot_bridge.py turns $UAVDOA into Cursor-on-Target for ATAK/WinTAK.
+// NMEA-style because it's line-based, has a checksum, and is easy to parse
+// anywhere. Log lines share the UART; only sentences start with '$'.
+// analysis/scripts/cot_bridge.py turns $UAVDOA into CoT for ATAK.
 #pragma once
 
 #include <cstddef>

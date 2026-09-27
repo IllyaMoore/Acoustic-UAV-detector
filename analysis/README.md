@@ -1,51 +1,43 @@
 # Analysis
 
-The Python side has three jobs:
-
-- It is the **reference implementation** the firmware is checked against.
-- It is the **workbench** for recordings pulled off the SD card.
-- It holds the **host software** that turns node output into a map picture.
+Python reference for the firmware DSP, tools for SD-card recordings, and the
+host side (fusion, ATAK bridge).
 
 ```sh
 cd analysis
-uv run pytest -q                 # reference tests + C++/Python parity (needs g++)
+uv run pytest -q     # includes the C++ vs Python check, needs g++
 ```
 
-(`uv` creates the environment on first run. If the checkout sits on a
-filesystem without symlinks (exFAT/NTFS), point it elsewhere with
-`UV_PROJECT_ENVIRONMENT=/some/where/venv`.)
+On a filesystem without symlinks (exFAT/NTFS) set
+`UV_PROJECT_ENVIRONMENT=/somewhere/else/venv`.
 
-## Package `uavdoa`
+| Module | |
+|---|---|
+| `geometry` | mic positions, azimuth convention |
+| `gccphat` | single-frame GCC-PHAT |
+| `doa` | bearing from three pair delays |
+| `pipeline` | mirror of `firmware/components/dsp` |
+| `simulate` | drone harmonics, uncorrelated wind, exact fractional delays, FIFO offset |
+| `crlb` | Cramér–Rao bounds |
+| `fusion` | multi-node triangulation with covariance |
+| `nmea`, `cot` | parse `$UAVDOA`, build CoT XML |
+| `wavio` | the SD card WAV format |
 
-| Module | What |
-| --- | --- |
-| `geometry` | mic coordinates, azimuth convention, far-field delays |
-| `gccphat` | textbook GCC-PHAT on one frame (IFFT + parabolic fit) |
-| `doa` | least-squares bearing from three pair delays, closure check |
-| `pipeline` | line-for-line mirror of `firmware/components/dsp` |
-| `simulate` | drone harmonics + broadband noise, exact fractional delays, wind that is uncorrelated between capsules, FIFO offset |
-| `crlb` | Cramér-Rao bounds for TDOA and azimuth |
-| `fusion` | multi-node bearing-only triangulation with covariance / CEP |
-| `nmea`, `cot` | parse `$UAVDOA`, build Cursor-on-Target XML |
-| `wavio` | the SD card's WAV layout |
+| Script | |
+|---|---|
+| `simulate_wav.py` | synthetic recording |
+| `localize.py` | bearings over time from a WAV, optional plot |
+| `click_test.py` | checks the SD_A/SD_B offset is constant, prints `UAV_M3_LAG_SAMPLES` |
+| `error_budget.py` | accuracy vs SNR against the bound → `docs/img/error_budget.png` |
+| `triangulate.py` | 3-node demo → `docs/img/triangulation.png` |
+| `cot_bridge.py` | serial `$UAVDOA` → CoT over UDP multicast |
 
-## Scripts
-
-| Script | Use |
-| --- | --- |
-| `simulate_wav.py` | make a synthetic recording (az, el, SNR, wind, FIFO offset) |
-| `localize.py` | run the pipeline over a WAV, print and plot bearings |
-| `click_test.py` | **the gate**: prove the SD_A/SD_B offset is constant, print `UAV_M3_LAG_SAMPLES` |
-| `error_budget.py` | Monte Carlo accuracy vs SNR against the CRLB → `docs/img/error_budget.png` |
-| `triangulate.py` | 3-node fusion demo → `docs/img/triangulation.png` |
-| `cot_bridge.py` | serial `$UAVDOA` → fused CoT → ATAK / WinTAK over UDP multicast |
-
-A full offline loop with no hardware:
+Without hardware:
 
 ```sh
 uv run python scripts/simulate_wav.py /tmp/s.wav --az 250 --wind 0 --offset 3 --seconds 6
 uv run python scripts/click_test.py --demo
 uv run python scripts/localize.py /tmp/s.wav --m3-lag 3 --plot /tmp/s.png
-../firmware/test/host/build/doa_cli /tmp/s.wav --m3-lag 3     # same, with the firmware's C++
-uv run python scripts/cot_bridge.py --demo --dry-run           # what ATAK would receive
+../firmware/test/host/build/doa_cli /tmp/s.wav --m3-lag 3
+uv run python scripts/cot_bridge.py --demo --dry-run
 ```

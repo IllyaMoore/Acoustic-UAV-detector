@@ -1,11 +1,9 @@
 // GCC-PHAT peak search on an already-accumulated cross-spectrum.
 //
-// The textbook recipe is "whiten, inverse FFT, find the max". Here the
-// inverse FFT is skipped: the physically possible lags are only +-21 samples
-// (150 mm at 48 kHz), so the correlation is evaluated directly at those 43
-// lags over the in-band bins only. That is ~7k complex MACs per pair instead
-// of a 2048-point IFFT, and the band-pass comes for free - out-of-band bins
-// are simply never summed.
+// Instead of an inverse FFT, the correlation is evaluated directly at the
+// physically possible lags (150 mm at 48 kHz is 21 samples; the pipeline
+// searches +-22, i.e. 45 lags) over the in-band bins only. Cheaper than a
+// 2048-point IFFT, and out-of-band bins are simply never summed.
 //
 // Reference: C. Knapp, G. Carter, "The generalized correlation method for
 // estimation of time delay", IEEE Trans. ASSP 24(4), 1976.

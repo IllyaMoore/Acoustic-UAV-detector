@@ -17,7 +17,7 @@ Output goes to UDP 239.2.3.1:6969 (ATAK's default SA multicast) unless
 
 Everything here is receive-side host software; the nodes themselves stay
 passive. Transmitting CoT over a radio link is a separate, regulated matter
-(see "Legal note" in CLAUDE.md).
+under martial law.
 """
 
 from __future__ import annotations
